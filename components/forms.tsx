@@ -176,33 +176,29 @@ export function DebtForm() {
 }
 
 export function BillingCycleForm({
-  billingCycleStartDay,
-  billingCycleEndDay
+  billingCycleReferenceStart,
+  billingCycleReferenceEnd
 }: {
-  billingCycleStartDay: number;
-  billingCycleEndDay: number;
+  billingCycleReferenceStart: string;
+  billingCycleReferenceEnd: string;
 }) {
   return (
     <form action={updateBillingCycleAction} className="form-grid compact-form">
       <label>
-        Tu ciclo inicia el dia
+        Fecha exacta de inicio
         <input
-          name="billingCycleStartDay"
-          type="number"
-          min="1"
-          max="31"
-          defaultValue={billingCycleStartDay}
+          name="billingCycleReferenceStart"
+          type="date"
+          defaultValue={billingCycleReferenceStart}
           required
         />
       </label>
       <label>
-        Tu ciclo termina el dia
+        Fecha exacta de fin
         <input
-          name="billingCycleEndDay"
-          type="number"
-          min="1"
-          max="31"
-          defaultValue={billingCycleEndDay}
+          name="billingCycleReferenceEnd"
+          type="date"
+          defaultValue={billingCycleReferenceEnd}
           required
         />
       </label>

@@ -1,20 +1,42 @@
 import { prisma } from "@/lib/prisma";
-import { calculateDebtProjection, getBudgetCycleRange } from "@/lib/finance";
+import { calculateDebtProjection, getBudgetCycleRange, getBudgetCycleRangeFromReference } from "@/lib/finance";
 import { decimalToNumber } from "@/lib/serializers";
 
 export async function getDashboardData(userId: string) {
-  const [user, transactions, debts, reminders, apiTokens] = await Promise.all([
-    prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: {
-        billingCycleStartDay: true,
-        billingCycleEndDay: true
-      }
-    }),
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: {
+      billingCycleStartDay: true,
+      billingCycleEndDay: true,
+      billingCycleReferenceStart: true,
+      billingCycleReferenceEnd: true
+    }
+  });
+
+  const budgetCycle =
+    user.billingCycleReferenceStart && user.billingCycleReferenceEnd
+      ? getBudgetCycleRangeFromReference(
+          new Date(),
+          user.billingCycleReferenceStart,
+          user.billingCycleReferenceEnd
+        )
+      : getBudgetCycleRange(new Date(), user.billingCycleStartDay, user.billingCycleEndDay);
+
+  const [transactions, cycleTransactions, debts, reminders, apiTokens] = await Promise.all([
     prisma.transaction.findMany({
       where: { userId },
       orderBy: { transactionAt: "desc" },
       take: 50
+    }),
+    prisma.transaction.findMany({
+      where: {
+        userId,
+        transactionAt: {
+          gte: budgetCycle.start,
+          lt: budgetCycle.endExclusive
+        }
+      },
+      orderBy: { transactionAt: "desc" }
     }),
     prisma.debt.findMany({
       where: { userId },
@@ -36,21 +58,11 @@ export async function getDashboardData(userId: string) {
     })
   ]);
 
-  const budgetCycle = getBudgetCycleRange(
-    new Date(),
-    user.billingCycleStartDay,
-    user.billingCycleEndDay
-  );
-  const monthlyTransactions = transactions.filter((item) => {
-    const date = new Date(item.transactionAt);
-    return date >= budgetCycle.start && date < budgetCycle.endExclusive;
-  });
-
-  const totalIncome = monthlyTransactions
+  const totalIncome = cycleTransactions
     .filter((item) => item.type === "INCOME")
     .reduce((sum, item) => sum + item.amount.toNumber(), 0);
 
-  const totalExpenses = monthlyTransactions
+  const totalExpenses = cycleTransactions
     .filter((item) => item.type === "EXPENSE")
     .reduce((sum, item) => sum + item.amount.toNumber(), 0);
 
@@ -67,13 +79,15 @@ export async function getDashboardData(userId: string) {
       totalExpenses,
       totalDebt,
       balance: totalIncome - totalExpenses,
-      monthlyTransactionCount: monthlyTransactions.length,
+      monthlyTransactionCount: cycleTransactions.length,
       activeDebtCount: debts.filter((item) => item.currentAmount.toNumber() > 0).length,
       pendingReminderCount: reminders.filter((item) => !item.isCompleted).length,
       cycleStartLabel: budgetCycle.start.toISOString(),
       cycleEndLabel: budgetCycle.end.toISOString(),
       cycleStartDay: budgetCycle.cycleStartDay,
-      cycleEndDay: budgetCycle.cycleEndDay
+      cycleEndDay: budgetCycle.cycleEndDay,
+      cycleReferenceStart: budgetCycle.start.toISOString().slice(0, 10),
+      cycleReferenceEnd: budgetCycle.end.toISOString().slice(0, 10)
     },
     alerts: {
       highSpend: totalIncome > 0 && totalExpenses / totalIncome >= 0.85,
@@ -99,6 +113,12 @@ export async function getDashboardData(userId: string) {
         principalAmount: payment.principalAmount.toNumber(),
         interestAmount: payment.interestAmount.toNumber()
       })),
+      totalPaidAmount: item.initialAmount.toNumber() - item.currentAmount.toNumber(),
+      totalPrincipalPaid: item.initialAmount.toNumber() - item.currentAmount.toNumber(),
+      totalInterestPaid: item.payments.reduce(
+        (sum, payment) => sum + payment.interestAmount.toNumber(),
+        0
+      ),
       projection: calculateDebtProjection({
         type: item.type,
         currentAmount: item.currentAmount.toNumber(),

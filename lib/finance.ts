@@ -64,6 +64,40 @@ export function getBudgetCycleRange(referenceDate: Date, cycleStartDay: number, 
   };
 }
 
+export function getBudgetCycleRangeFromReference(
+  referenceDate: Date,
+  referenceStart: Date | string,
+  referenceEnd: Date | string
+) {
+  let start = new Date(referenceStart);
+  let end = new Date(referenceEnd);
+
+  start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    throw new Error("Invalid billing cycle reference dates");
+  }
+
+  while (referenceDate < start) {
+    start = addMonthsClamped(start, -1, false);
+    end = addMonthsClamped(end, -1, true);
+  }
+
+  while (referenceDate > end) {
+    start = addMonthsClamped(start, 1, false);
+    end = addMonthsClamped(end, 1, true);
+  }
+
+  return {
+    start,
+    end,
+    endExclusive: new Date(end.getTime() + 1),
+    cycleStartDay: start.getDate(),
+    cycleEndDay: end.getDate()
+  };
+}
+
 export function calculateDebtProjection(debt: DebtLike) {
   const balance = Math.max(0, debt.currentAmount);
   const monthlyRate = annualEffectiveToMonthlyRate(debt.annualEffectiveRate);
@@ -176,4 +210,15 @@ function roundCurrency(value: number) {
 function createClampedDate(year: number, month: number, desiredDay: number) {
   const lastDay = new Date(year, month + 1, 0).getDate();
   return new Date(year, month, Math.min(desiredDay, lastDay));
+}
+
+function addMonthsClamped(date: Date, months: number, endOfDay: boolean) {
+  const shifted = createClampedDate(date.getFullYear(), date.getMonth() + months, date.getDate());
+  if (endOfDay) {
+    shifted.setHours(23, 59, 59, 999);
+  } else {
+    shifted.setHours(0, 0, 0, 0);
+  }
+
+  return shifted;
 }

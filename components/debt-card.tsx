@@ -11,6 +11,9 @@ type Debt = {
   creditLimit: number | null;
   minimumPaymentRate: number | null;
   startedAt: string | Date | null;
+  totalPaidAmount: number;
+  totalPrincipalPaid: number;
+  totalInterestPaid: number;
   dueDayOfMonth: number | null;
   statementDayOfMonth: number | null;
   projection: {
@@ -31,7 +34,7 @@ type Debt = {
 };
 
 export function DebtCard({ debt }: { debt: Debt }) {
-  const paid = debt.initialAmount - debt.currentAmount;
+  const paid = debt.totalPrincipalPaid;
   const progress = debt.initialAmount === 0 ? 0 : (paid / debt.initialAmount) * 100;
   const lastPayment = debt.payments[0];
 
@@ -56,6 +59,22 @@ export function DebtCard({ debt }: { debt: Debt }) {
       </div>
 
       <div className="detail-grid">
+        <div>
+          <span className="detail-label">Pagado del credito</span>
+          <strong>{formatCurrency(debt.totalPaidAmount)}</strong>
+        </div>
+        <div>
+          <span className="detail-label">Saldo actual</span>
+          <strong>{formatCurrency(debt.currentAmount)}</strong>
+        </div>
+        <div>
+          <span className="detail-label">Valor inicial</span>
+          <strong>{formatCurrency(debt.initialAmount)}</strong>
+        </div>
+        <div>
+          <span className="detail-label">Capital abonado</span>
+          <strong>{formatCurrency(debt.totalPrincipalPaid)}</strong>
+        </div>
         <div>
           <span className="detail-label">Cuota estimada</span>
           <strong>{formatCurrency(debt.projection.estimatedPayment)}</strong>
@@ -86,6 +105,13 @@ export function DebtCard({ debt }: { debt: Debt }) {
         {debt.minimumPaymentRate ? (
           <p className="meta">Pago minimo configurado: {formatPercent(debt.minimumPaymentRate, 2)}</p>
         ) : null}
+        <p className="meta">
+          Valor inicial {formatCurrency(debt.initialAmount)} {"->"} saldo actual {formatCurrency(debt.currentAmount)}.
+          Has pagado realmente {formatCurrency(debt.totalPaidAmount)} del credito.
+          {debt.totalInterestPaid > 0
+            ? ` De ese valor, ${formatCurrency(debt.totalInterestPaid)} ha sido interes.`
+            : ""}
+        </p>
         {debt.projection.payoffMonths ? (
           <p className="meta">
             Tiempo estimado para salir: {debt.projection.payoffMonths} mes(es)

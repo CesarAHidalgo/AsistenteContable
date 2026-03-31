@@ -102,8 +102,8 @@ export default async function Home({
               </div>
             </div>
             <BillingCycleForm
-              billingCycleStartDay={data.summary.cycleStartDay}
-              billingCycleEndDay={data.summary.cycleEndDay}
+              billingCycleReferenceStart={data.summary.cycleReferenceStart}
+              billingCycleReferenceEnd={data.summary.cycleReferenceEnd}
             />
           </SectionCard>
 

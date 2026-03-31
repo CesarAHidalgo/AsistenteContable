@@ -40,7 +40,9 @@ export async function registerAction(formData: FormData) {
       email,
       passwordHash: hashPassword(password),
       billingCycleStartDay: 1,
-      billingCycleEndDay: 31
+      billingCycleEndDay: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate(),
+      billingCycleReferenceStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+      billingCycleReferenceEnd: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
     }
   });
 
@@ -98,14 +100,20 @@ export async function createDebtAction(formData: FormData) {
 
 export async function updateBillingCycleAction(formData: FormData) {
   const user = await requireUser();
-  const cycleStartDay = Number(formData.get("billingCycleStartDay") || 1);
-  const cycleEndDay = Number(formData.get("billingCycleEndDay") || 31);
+  const cycleStartDate = new Date(requiredString(formData.get("billingCycleReferenceStart")));
+  const cycleEndDate = new Date(requiredString(formData.get("billingCycleReferenceEnd")));
+
+  if (Number.isNaN(cycleStartDate.getTime()) || Number.isNaN(cycleEndDate.getTime()) || cycleStartDate >= cycleEndDate) {
+    redirect("/?error=invalid-cycle-range");
+  }
 
   await prisma.user.update({
     where: { id: user.id },
     data: {
-      billingCycleStartDay: Math.min(31, Math.max(1, cycleStartDay)),
-      billingCycleEndDay: Math.min(31, Math.max(1, cycleEndDay))
+      billingCycleStartDay: cycleStartDate.getDate(),
+      billingCycleEndDay: cycleEndDate.getDate(),
+      billingCycleReferenceStart: cycleStartDate,
+      billingCycleReferenceEnd: cycleEndDate
     }
   });
 
