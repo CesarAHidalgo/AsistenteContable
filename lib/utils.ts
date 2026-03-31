@@ -30,3 +30,21 @@ export function paymentMethodLabel(value: string) {
 
   return labels[value] ?? value;
 }
+
+export function debtTypeLabel(value: string) {
+  const labels: Record<string, string> = {
+    FIXED_INSTALLMENT: "Credito fijo",
+    REVOLVING_CREDIT: "Rotativo",
+    CREDIT_CARD: "Tarjeta"
+  };
+
+  return labels[value] ?? value;
+}
+
+export function formatPercent(value: number, digits = 1) {
+  return new Intl.NumberFormat("es-CO", {
+    style: "percent",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
+  }).format(value / 100);
+}

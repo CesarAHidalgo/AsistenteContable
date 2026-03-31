@@ -1,4 +1,4 @@
-import { PaymentMethod, TransactionType } from "@prisma/client";
+import { DebtType, PaymentMethod, TransactionType } from "@prisma/client";
 
 export function decimalToNumber(value: { toNumber(): number } | number | null) {
   if (value === null) {
@@ -28,5 +28,13 @@ export function transactionTypeOptions(): Array<{ value: TransactionType; label:
   return [
     { value: "INCOME", label: "Ingreso" },
     { value: "EXPENSE", label: "Gasto" }
+  ];
+}
+
+export function debtTypeOptions(): Array<{ value: DebtType; label: string }> {
+  return [
+    { value: "FIXED_INSTALLMENT", label: "Credito de tasa fija" },
+    { value: "REVOLVING_CREDIT", label: "Credito rotativo" },
+    { value: "CREDIT_CARD", label: "Tarjeta de credito" }
   ];
 }

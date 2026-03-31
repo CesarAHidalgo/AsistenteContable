@@ -1,4 +1,7 @@
-import { PaymentMethod, TransactionType } from "@prisma/client";
+"use client";
+
+import { useState } from "react";
+import { DebtType, PaymentMethod, TransactionType } from "@prisma/client";
 import {
   createApiTokenAction,
   createDebtAction,
@@ -6,9 +9,15 @@ import {
   createReminderAction,
   createTransactionAction,
   registerAction,
-  revokeApiTokenAction
+  revokeApiTokenAction,
+  updateBillingCycleAction
 } from "@/app/actions";
-import { formatDateInput, paymentMethodOptions, transactionTypeOptions } from "@/lib/serializers";
+import {
+  debtTypeOptions,
+  formatDateInput,
+  paymentMethodOptions,
+  transactionTypeOptions
+} from "@/lib/serializers";
 
 const categories = [
   "Nomina",
@@ -79,25 +88,125 @@ export function TransactionForm() {
 }
 
 export function DebtForm() {
+  const [debtType, setDebtType] = useState<DebtType>("FIXED_INSTALLMENT");
+
   return (
     <form action={createDebtAction} className="form-grid">
       <label>
-        Nombre de la deuda
-        <input name="name" required />
+        Tipo de deuda
+        <select
+          name="type"
+          value={debtType}
+          onChange={(event) => setDebtType(event.target.value as DebtType)}
+        >
+          {debtTypeOptions().map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </label>
+
       <label>
-        Saldo inicial
+        Nombre del producto
+        <input name="name" placeholder="Libre inversion Bancolombia" required />
+      </label>
+
+      <div className="form-section-title">Saldo base</div>
+      <label>
+        Valor inicial del credito
         <input name="initialAmount" type="number" min="0" step="0.01" required />
       </label>
       <label>
-        Pago mensual esperado
-        <input name="monthlyPayment" type="number" min="0" step="0.01" />
+        Valor de deuda actual
+        <input name="currentAmount" type="number" min="0" step="0.01" required />
       </label>
       <label>
-        Dia del mes
+        Tasa EA (%)
+        <input name="annualEffectiveRate" type="number" min="0" step="0.0001" />
+      </label>
+      <label>
+        Fecha de inicio del credito
+        <input name="startedAt" type="date" defaultValue={formatDateInput(new Date())} />
+      </label>
+
+      <div className="form-section-title">Pago programado</div>
+      <label>
+        Cuota mensual esperada
+        <input
+          name="monthlyPayment"
+          type="number"
+          min="0"
+          step="0.01"
+          required={debtType === "FIXED_INSTALLMENT"}
+        />
+      </label>
+      <label>
+        Dia de pago
         <input name="dueDayOfMonth" type="number" min="1" max="31" />
       </label>
+
+      {(debtType === "REVOLVING_CREDIT" || debtType === "CREDIT_CARD") ? (
+        <>
+          <div className="form-section-title">Control de cupo</div>
+          <label>
+            Cupo total
+            <input name="creditLimit" type="number" min="0" step="0.01" />
+          </label>
+          <label>
+            Porcentaje estimado de pago minimo
+            <input name="minimumPaymentRate" type="number" min="0" step="0.001" />
+          </label>
+        </>
+      ) : null}
+
+      {debtType === "CREDIT_CARD" ? (
+        <>
+          <div className="form-section-title">Corte de tarjeta</div>
+          <label>
+            Dia de corte
+            <input name="statementDayOfMonth" type="number" min="1" max="31" />
+          </label>
+        </>
+      ) : null}
+
       <button type="submit">Crear deuda</button>
+    </form>
+  );
+}
+
+export function BillingCycleForm({
+  billingCycleStartDay,
+  billingCycleEndDay
+}: {
+  billingCycleStartDay: number;
+  billingCycleEndDay: number;
+}) {
+  return (
+    <form action={updateBillingCycleAction} className="form-grid compact-form">
+      <label>
+        Tu ciclo inicia el dia
+        <input
+          name="billingCycleStartDay"
+          type="number"
+          min="1"
+          max="31"
+          defaultValue={billingCycleStartDay}
+          required
+        />
+      </label>
+      <label>
+        Tu ciclo termina el dia
+        <input
+          name="billingCycleEndDay"
+          type="number"
+          min="1"
+          max="31"
+          defaultValue={billingCycleEndDay}
+          required
+        />
+      </label>
+      <button type="submit">Actualizar ciclo</button>
     </form>
   );
 }
@@ -142,14 +251,14 @@ export function DebtPaymentForm({
         </select>
       </label>
       <label>
-        Valor del abono
+        Valor pagado
         <input name="amount" type="number" min="0" step="0.01" required />
       </label>
       <label>
         Fecha
         <input name="paidAt" type="date" defaultValue={formatDateInput(new Date())} required />
       </label>
-      <button type="submit">Aplicar abono</button>
+      <button type="submit">Aplicar pago</button>
     </form>
   );
 }

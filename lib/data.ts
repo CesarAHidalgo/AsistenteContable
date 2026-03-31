@@ -1,12 +1,20 @@
 import { prisma } from "@/lib/prisma";
+import { calculateDebtProjection, getBudgetCycleRange } from "@/lib/finance";
 import { decimalToNumber } from "@/lib/serializers";
 
 export async function getDashboardData(userId: string) {
-  const [transactions, debts, reminders, apiTokens] = await Promise.all([
+  const [user, transactions, debts, reminders, apiTokens] = await Promise.all([
+    prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: {
+        billingCycleStartDay: true,
+        billingCycleEndDay: true
+      }
+    }),
     prisma.transaction.findMany({
       where: { userId },
       orderBy: { transactionAt: "desc" },
-      take: 12
+      take: 50
     }),
     prisma.debt.findMany({
       where: { userId },
@@ -28,11 +36,14 @@ export async function getDashboardData(userId: string) {
     })
   ]);
 
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  const budgetCycle = getBudgetCycleRange(
+    new Date(),
+    user.billingCycleStartDay,
+    user.billingCycleEndDay
+  );
   const monthlyTransactions = transactions.filter((item) => {
     const date = new Date(item.transactionAt);
-    return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+    return date >= budgetCycle.start && date < budgetCycle.endExclusive;
   });
 
   const totalIncome = monthlyTransactions
@@ -55,7 +66,14 @@ export async function getDashboardData(userId: string) {
       totalIncome,
       totalExpenses,
       totalDebt,
-      balance: totalIncome - totalExpenses
+      balance: totalIncome - totalExpenses,
+      monthlyTransactionCount: monthlyTransactions.length,
+      activeDebtCount: debts.filter((item) => item.currentAmount.toNumber() > 0).length,
+      pendingReminderCount: reminders.filter((item) => !item.isCompleted).length,
+      cycleStartLabel: budgetCycle.start.toISOString(),
+      cycleEndLabel: budgetCycle.end.toISOString(),
+      cycleStartDay: budgetCycle.cycleStartDay,
+      cycleEndDay: budgetCycle.cycleEndDay
     },
     alerts: {
       highSpend: totalIncome > 0 && totalExpenses / totalIncome >= 0.85,
@@ -70,11 +88,26 @@ export async function getDashboardData(userId: string) {
       ...item,
       initialAmount: item.initialAmount.toNumber(),
       currentAmount: item.currentAmount.toNumber(),
+      startedAt: item.startedAt,
+      annualEffectiveRate: decimalToNumber(item.annualEffectiveRate),
       monthlyPayment: decimalToNumber(item.monthlyPayment),
+      creditLimit: decimalToNumber(item.creditLimit),
+      minimumPaymentRate: decimalToNumber(item.minimumPaymentRate),
       payments: item.payments.map((payment) => ({
         ...payment,
-        amount: payment.amount.toNumber()
-      }))
+        amount: payment.amount.toNumber(),
+        principalAmount: payment.principalAmount.toNumber(),
+        interestAmount: payment.interestAmount.toNumber()
+      })),
+      projection: calculateDebtProjection({
+        type: item.type,
+        currentAmount: item.currentAmount.toNumber(),
+        startedAt: item.startedAt,
+        annualEffectiveRate: decimalToNumber(item.annualEffectiveRate),
+        monthlyPayment: decimalToNumber(item.monthlyPayment),
+        creditLimit: decimalToNumber(item.creditLimit),
+        minimumPaymentRate: decimalToNumber(item.minimumPaymentRate)
+      })
     })),
     reminders: reminders.map((item) => ({
       ...item,

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LogoutButton } from "@/components/auth-client-controls";
 import { ApiTokenForm, RevokeTokenForm } from "@/components/forms";
+import { IdleSessionManager } from "@/components/idle-session-manager";
 import { SectionCard } from "@/components/section-card";
 import { requireUser } from "@/lib/auth";
 import { getDashboardData } from "@/lib/data";
@@ -17,6 +18,7 @@ export default async function IntegracionesPage({
 
   return (
     <main className="page-shell">
+      <IdleSessionManager />
       <section className="hero compact-hero">
         <div className="hero-copy">
           <p className="eyebrow">Integraciones</p>

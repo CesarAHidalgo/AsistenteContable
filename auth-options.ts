@@ -54,7 +54,12 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 export const authOptions: NextAuthOptions = {
   secret: authSecret,
   session: {
-    strategy: "jwt"
+    strategy: "jwt",
+    maxAge: 15 * 60,
+    updateAge: 0
+  },
+  jwt: {
+    maxAge: 15 * 60
   },
   pages: {
     signIn: "/login"

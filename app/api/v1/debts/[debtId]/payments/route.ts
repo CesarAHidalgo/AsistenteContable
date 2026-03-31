@@ -1,4 +1,5 @@
 import { authenticateApiRequest } from "@/lib/auth";
+import { splitDebtPayment } from "@/lib/finance";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(
@@ -24,18 +25,33 @@ export async function POST(
     return Response.json({ error: "Debt not found" }, { status: 404 });
   }
 
+  const paymentSplit = splitDebtPayment(
+    {
+      type: debt.type,
+      currentAmount: debt.currentAmount.toNumber(),
+      startedAt: debt.startedAt,
+      annualEffectiveRate: debt.annualEffectiveRate?.toNumber() ?? null,
+      monthlyPayment: debt.monthlyPayment?.toNumber() ?? null,
+      creditLimit: debt.creditLimit?.toNumber() ?? null,
+      minimumPaymentRate: debt.minimumPaymentRate?.toNumber() ?? null
+    },
+    amount
+  );
+
   const [, updatedDebt] = await prisma.$transaction([
     prisma.debtPayment.create({
       data: {
         debtId,
         amount,
+        principalAmount: paymentSplit.principalAmount,
+        interestAmount: paymentSplit.interestAmount,
         paidAt
       }
     }),
     prisma.debt.update({
       where: { id: debtId },
       data: {
-        currentAmount: Math.max(0, debt.currentAmount.toNumber() - amount)
+        currentAmount: Math.max(0, debt.currentAmount.toNumber() - paymentSplit.principalAmount)
       }
     }),
     prisma.transaction.create({
@@ -55,6 +71,10 @@ export async function POST(
     ...updatedDebt,
     initialAmount: updatedDebt.initialAmount.toNumber(),
     currentAmount: updatedDebt.currentAmount.toNumber(),
-    monthlyPayment: updatedDebt.monthlyPayment?.toNumber() ?? null
+    startedAt: updatedDebt.startedAt,
+    annualEffectiveRate: updatedDebt.annualEffectiveRate?.toNumber() ?? null,
+    monthlyPayment: updatedDebt.monthlyPayment?.toNumber() ?? null,
+    creditLimit: updatedDebt.creditLimit?.toNumber() ?? null,
+    minimumPaymentRate: updatedDebt.minimumPaymentRate?.toNumber() ?? null
   });
 }
