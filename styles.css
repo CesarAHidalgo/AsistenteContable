@@ -1,0 +1,278 @@
+:root {
+  --bg: #f4efe7;
+  --panel: rgba(255, 252, 247, 0.88);
+  --panel-strong: #fffdf8;
+  --ink: #16212f;
+  --muted: #5f6b78;
+  --accent: #0f766e;
+  --accent-strong: #0a4f4a;
+  --danger: #b3472c;
+  --success: #1d7a46;
+  --border: rgba(22, 33, 47, 0.08);
+  --shadow: 0 18px 45px rgba(33, 46, 63, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(179, 71, 44, 0.15), transparent 26%),
+    linear-gradient(180deg, #fbf8f2 0%, var(--bg) 100%);
+}
+
+.app-shell {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 20px 40px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+  align-items: stretch;
+  margin-bottom: 24px;
+}
+
+.hero h1 {
+  font-size: clamp(2rem, 5vw, 4rem);
+  line-height: 1.05;
+  margin: 0 0 16px;
+  max-width: 14ch;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.78rem;
+  color: var(--accent-strong);
+  margin: 0 0 12px;
+}
+
+.hero-copy,
+.section-title p,
+label,
+.card-label,
+.alert p,
+.item-meta {
+  color: var(--muted);
+}
+
+.hero-card,
+.panel {
+  background: var(--panel);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+}
+
+.hero-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hero-balance {
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  font-weight: 700;
+  margin: 12px 0 18px;
+}
+
+.hero-metrics {
+  display: grid;
+  gap: 14px;
+}
+
+.hero-metrics div {
+  padding: 12px 14px;
+  background: rgba(15, 118, 110, 0.07);
+  border-radius: 18px;
+}
+
+.hero-metrics span {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.panel {
+  padding: 22px;
+}
+
+.panel-form {
+  align-self: start;
+}
+
+.wide {
+  grid-column: span 2;
+}
+
+.section-title h2,
+.section-title h3,
+h3 {
+  margin: 0 0 6px;
+}
+
+.section-title {
+  margin-bottom: 16px;
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+}
+
+.compact {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.92rem;
+}
+
+input,
+select,
+button {
+  font: inherit;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(22, 33, 47, 0.12);
+  background: var(--panel-strong);
+  color: var(--ink);
+}
+
+button {
+  border: 0;
+  border-radius: 16px;
+  padding: 13px 16px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #f8fafc;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(15, 118, 110, 0.22);
+}
+
+.alerts,
+.list {
+  display: grid;
+  gap: 12px;
+}
+
+.alert,
+.list-item {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--border);
+}
+
+.alert strong,
+.list-item strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.alert.warning {
+  border-left: 5px solid var(--danger);
+}
+
+.alert.success {
+  border-left: 5px solid var(--success);
+}
+
+.list-item header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.pill {
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pill.income {
+  background: rgba(29, 122, 70, 0.12);
+  color: var(--success);
+}
+
+.pill.expense {
+  background: rgba(179, 71, 44, 0.12);
+  color: var(--danger);
+}
+
+.debt-progress {
+  margin-top: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.12);
+  overflow: hidden;
+}
+
+.debt-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #55b7a3);
+}
+
+.empty-state {
+  color: var(--muted);
+  padding: 12px 0;
+}
+
+@media (max-width: 1100px) {
+  .dashboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wide {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 780px) {
+  .app-shell {
+    padding: 18px 14px 28px;
+  }
+
+  .hero,
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .wide {
+    grid-column: span 1;
+  }
+}
