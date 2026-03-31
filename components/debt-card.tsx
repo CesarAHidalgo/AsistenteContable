@@ -5,7 +5,7 @@ type Debt = {
   name: string;
   initialAmount: number;
   currentAmount: number;
-  monthlyPayment: number;
+  monthlyPayment: number | null;
 };
 
 export function DebtCard({ debt }: { debt: Debt }) {
@@ -18,7 +18,7 @@ export function DebtCard({ debt }: { debt: Debt }) {
         <div>
           <h3>{debt.name}</h3>
           <p className="meta">Saldo pendiente: {formatCurrency(debt.currentAmount)}</p>
-          <p className="meta">Pago mensual esperado: {formatCurrency(debt.monthlyPayment)}</p>
+          <p className="meta">Pago mensual esperado: {formatCurrency(debt.monthlyPayment ?? 0)}</p>
         </div>
         <span className="chip warning">{Math.round(progress)}%</span>
       </header>

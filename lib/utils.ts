@@ -6,12 +6,15 @@ export function formatCurrency(value: number) {
   }).format(value);
 }
 
-export function formatDate(value: string) {
+export function formatDate(value: string | Date) {
+  const normalized =
+    value instanceof Date ? value : value.includes("T") ? value : `${value}T00:00:00`;
+
   return new Intl.DateTimeFormat("es-CO", {
     year: "numeric",
     month: "short",
     day: "numeric"
-  }).format(new Date(`${value}T00:00:00`));
+  }).format(new Date(normalized));
 }
 
 export function paymentMethodLabel(value: string) {

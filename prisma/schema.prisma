@@ -22,6 +22,41 @@ enum PaymentMethod {
   OTHER
 }
 
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String?
+  passwordHash String?
+  googleId     String?       @unique
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  sessions     Session[]
+  apiTokens    ApiToken[]
+  transactions Transaction[]
+  debts        Debt[]
+  reminders    Reminder[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ApiToken {
+  id         String    @id @default(cuid())
+  name       String
+  tokenHash  String    @unique
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 model Transaction {
   id            String          @id @default(cuid())
   description   String
@@ -32,6 +67,8 @@ model Transaction {
   transactionAt DateTime
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Debt {
@@ -44,6 +81,8 @@ model Debt {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   payments       DebtPayment[]
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model DebtPayment {
@@ -63,4 +102,6 @@ model Reminder {
   isCompleted Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

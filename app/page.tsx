@@ -1,99 +1,119 @@
+import Link from "next/link";
+import { LogoutButton } from "@/components/auth-client-controls";
 import { DebtCard } from "@/components/debt-card";
+import {
+  DebtForm,
+  DebtPaymentForm,
+  ReminderForm,
+  TransactionForm
+} from "@/components/forms";
 import { MetricCard } from "@/components/metric-card";
 import { ReminderCard } from "@/components/reminder-card";
+import { SectionCard } from "@/components/section-card";
 import { TransactionCard } from "@/components/transaction-card";
-import { seedData } from "@/lib/seed-data";
+import { requireUser } from "@/lib/auth";
+import { getDashboardData } from "@/lib/data";
 import { formatCurrency } from "@/lib/utils";
 
-export default function Home() {
-  const totalIncome = seedData.transactions
-    .filter((item) => item.type === "INCOME")
-    .reduce((sum, item) => sum + item.amount, 0);
-
-  const totalExpenses = seedData.transactions
-    .filter((item) => item.type === "EXPENSE")
-    .reduce((sum, item) => sum + item.amount, 0);
-
-  const totalDebt = seedData.debts.reduce((sum, item) => sum + item.currentAmount, 0);
-  const balance = totalIncome - totalExpenses;
+export default async function Home() {
+  const user = await requireUser();
+  const data = await getDashboardData(user.id);
 
   return (
     <main className="page-shell">
       <section className="hero">
         <div className="hero-copy">
           <p className="eyebrow">AsistenteContable</p>
-          <h1>Tu contabilidad personal, lista para web, movil y automatizaciones.</h1>
+          <h1>Tu contabilidad personal, con acceso web seguro y base lista para movil.</h1>
           <p>
-            Esta base ya esta preparada para evolucionar a registros reales con PostgreSQL,
-            recordatorios mensuales y entradas rapidas desde iPhone o navegadores.
+            Registra movimientos reales en PostgreSQL, controla tus deudas y crea tokens para integraciones personales.
           </p>
+          <div className="hero-actions">
+            <Link href="/integraciones" className="inline-link">
+              Gestionar integraciones
+            </Link>
+            <LogoutButton />
+          </div>
+          <div className="alert-row">
+            {data.alerts.highSpend ? (
+              <div className="alert-chip warning">Tu gasto del mes ya supera el 85% de tus ingresos.</div>
+            ) : null}
+            {data.alerts.noIncome ? (
+              <div className="alert-chip warning">Tienes gastos registrados sin ingresos este mes.</div>
+            ) : null}
+            {data.alerts.dueSoonCount > 0 ? (
+              <div className="alert-chip success">
+                {data.alerts.dueSoonCount} recordatorio(s) vencen en los proximos 5 dias.
+              </div>
+            ) : null}
+          </div>
         </div>
+
         <div className="hero-summary">
-          <MetricCard label="Balance del mes" value={formatCurrency(balance)} accent="primary" />
-          <MetricCard label="Ingresos" value={formatCurrency(totalIncome)} />
-          <MetricCard label="Gastos" value={formatCurrency(totalExpenses)} accent="danger" />
-          <MetricCard label="Deuda pendiente" value={formatCurrency(totalDebt)} />
+          <MetricCard label="Balance del mes" value={formatCurrency(data.summary.balance)} accent="primary" />
+          <MetricCard label="Ingresos" value={formatCurrency(data.summary.totalIncome)} />
+          <MetricCard label="Gastos" value={formatCurrency(data.summary.totalExpenses)} accent="danger" />
+          <MetricCard label="Deuda pendiente" value={formatCurrency(data.summary.totalDebt)} />
         </div>
       </section>
 
       <section className="grid-layout">
-        <article className="panel panel-wide">
-          <div className="panel-header">
-            <div>
-              <p className="section-kicker">Movimientos</p>
-              <h2>Transacciones recientes</h2>
-            </div>
-            <span className="badge">Fase 2</span>
-          </div>
-          <div className="stack-list">
-            {seedData.transactions.map((transaction) => (
-              <TransactionCard key={transaction.id} transaction={transaction} />
-            ))}
-          </div>
-        </article>
+        <SectionCard kicker="Registro" title="Nuevo movimiento" wide>
+          <TransactionForm />
+        </SectionCard>
 
-        <article className="panel">
-          <div className="panel-header">
-            <div>
-              <p className="section-kicker">Pagos</p>
-              <h2>Recordatorios</h2>
-            </div>
-          </div>
-          <div className="stack-list">
-            {seedData.reminders.map((reminder) => (
-              <ReminderCard key={reminder.id} reminder={reminder} />
-            ))}
-          </div>
-        </article>
+        <SectionCard kicker="Deudas" title="Nueva deuda">
+          <DebtForm />
+        </SectionCard>
 
-        <article className="panel">
-          <div className="panel-header">
-            <div>
-              <p className="section-kicker">Deudas</p>
-              <h2>Seguimiento de creditos</h2>
-            </div>
-          </div>
-          <div className="stack-list">
-            {seedData.debts.map((debt) => (
-              <DebtCard key={debt.id} debt={debt} />
-            ))}
-          </div>
-        </article>
+        <SectionCard kicker="Recordatorios" title="Nuevo recordatorio">
+          <ReminderForm />
+        </SectionCard>
 
-        <article className="panel">
-          <div className="panel-header">
-            <div>
-              <p className="section-kicker">Proxima evolucion</p>
-              <h2>Backlog inmediato</h2>
-            </div>
+        <SectionCard kicker="Abonos" title="Registrar pago a deuda">
+          <DebtPaymentForm debts={data.debts} />
+        </SectionCard>
+
+        <SectionCard kicker="Movimientos" title="Transacciones recientes" wide>
+          <div className="stack-list">
+            {data.transactions.length === 0 ? (
+              <p className="empty-state">Todavia no tienes movimientos guardados.</p>
+            ) : (
+              data.transactions.map((transaction) => (
+                <TransactionCard key={transaction.id} transaction={transaction} />
+              ))
+            )}
           </div>
+        </SectionCard>
+
+        <SectionCard kicker="Pagos" title="Recordatorios">
+          <div className="stack-list">
+            {data.reminders.length === 0 ? (
+              <p className="empty-state">No hay recordatorios creados.</p>
+            ) : (
+              data.reminders.map((reminder) => <ReminderCard key={reminder.id} reminder={reminder} />)
+            )}
+          </div>
+        </SectionCard>
+
+        <SectionCard kicker="Deudas" title="Seguimiento de creditos">
+          <div className="stack-list">
+            {data.debts.length === 0 ? (
+              <p className="empty-state">Todavia no has agregado deudas.</p>
+            ) : (
+              data.debts.map((debt) => <DebtCard key={debt.id} debt={debt} />)
+            )}
+          </div>
+        </SectionCard>
+
+        <SectionCard kicker="API" title="Integracion movil">
           <ul className="plain-list">
-            <li>Autenticacion personal para sincronizar entre dispositivos.</li>
-            <li>CRUD real de movimientos, deudas y recordatorios.</li>
-            <li>Presupuesto mensual por categoria con alertas mas finas.</li>
-            <li>API segura para Atajos de iPhone y automatizaciones.</li>
+            <li>Sesion segura para uso web.</li>
+            <li>Tokens revocables para Atajos de iPhone.</li>
+            <li>Endpoints JSON protegidos por `Bearer token`.</li>
+            <li>CRUD persistido en PostgreSQL con Prisma.</li>
           </ul>
-        </article>
+        </SectionCard>
       </section>
     </main>
   );

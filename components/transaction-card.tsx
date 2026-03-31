@@ -7,7 +7,7 @@ type Transaction = {
   type: "INCOME" | "EXPENSE";
   category: string;
   paymentMethod: "BANK_TRANSFER" | "CREDIT_CARD" | "DEBIT_CARD" | "CASH" | "NEQUI" | "DAVIPLATA" | "OTHER";
-  transactionAt: string;
+  transactionAt: string | Date;
 };
 
 export function TransactionCard({ transaction }: { transaction: Transaction }) {

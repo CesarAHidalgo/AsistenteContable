@@ -36,10 +36,58 @@ a {
   text-decoration: none;
 }
 
+input,
+select,
+button,
+textarea {
+  font: inherit;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ink);
+}
+
+button {
+  border: 0;
+  border-radius: 16px;
+  padding: 12px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+  color: white;
+}
+
+.ghost-button {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
 .page-shell {
   width: min(1280px, calc(100% - 32px));
   margin: 0 auto;
   padding: 32px 0 48px;
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
 }
 
 .hero {
@@ -50,8 +98,13 @@ a {
   margin-bottom: 20px;
 }
 
+.compact-hero {
+  grid-template-columns: 1.2fr 0.8fr;
+}
+
 .hero-copy,
-.panel {
+.panel,
+.auth-card {
   border: 1px solid var(--line);
   background: var(--panel);
   border-radius: 28px;
@@ -59,21 +112,25 @@ a {
   backdrop-filter: blur(12px);
 }
 
-.hero-copy {
-  padding: 28px;
+.hero-copy,
+.panel,
+.auth-card {
+  padding: 24px;
 }
 
 .hero-copy h1 {
   margin: 0 0 14px;
   font-size: clamp(2.2rem, 5vw, 4.6rem);
   line-height: 0.98;
-  max-width: 11ch;
+  max-width: 12ch;
 }
 
-.hero-copy p {
-  margin: 0;
+.hero-copy p,
+.auth-copy,
+.auth-helper,
+.empty-state,
+.meta {
   color: var(--muted);
-  max-width: 58ch;
 }
 
 .eyebrow,
@@ -122,12 +179,12 @@ a {
   gap: 20px;
 }
 
-.panel {
-  padding: 22px;
+.single-column {
+  grid-template-columns: 1fr;
 }
 
 .panel-wide {
-  grid-row: span 2;
+  grid-column: span 2;
 }
 
 .panel-header {
@@ -141,34 +198,8 @@ a {
   margin: 0;
 }
 
-.badge,
-.chip {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.badge {
-  background: rgba(15, 118, 110, 0.12);
-  color: var(--primary-deep);
-}
-
-.chip.income {
-  background: rgba(38, 115, 77, 0.12);
-  color: var(--success);
-}
-
-.chip.expense,
-.chip.warning {
-  background: rgba(180, 74, 43, 0.12);
-  color: var(--danger);
-}
-
-.stack-list {
+.stack-list,
+.form-grid {
   display: grid;
   gap: 12px;
 }
@@ -192,13 +223,25 @@ a {
   font-size: 1rem;
 }
 
-.meta {
-  color: var(--muted);
-  font-size: 0.92rem;
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-.amount {
-  font-weight: 700;
+.chip.income {
+  background: rgba(38, 115, 77, 0.12);
+  color: var(--success);
+}
+
+.chip.expense,
+.chip.warning {
+  background: rgba(180, 74, 43, 0.12);
+  color: var(--danger);
 }
 
 .progress {
@@ -224,13 +267,88 @@ a {
   gap: 10px;
 }
 
+.hero-actions,
+.alert-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.inline-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.error-banner,
+.token-banner,
+.alert-chip {
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+.error-banner,
+.alert-chip.warning {
+  background: rgba(180, 74, 43, 0.12);
+  color: var(--danger);
+}
+
+.token-banner,
+.alert-chip.success {
+  background: rgba(15, 118, 110, 0.12);
+  color: var(--primary-deep);
+}
+
+.separator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  margin: 8px 0;
+}
+
+.separator::before,
+.separator::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.google-button {
+  width: 100%;
+  background: #ffffff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.token-banner code,
+.code-card {
+  word-break: break-all;
+}
+
+.code-card {
+  margin: 0;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(23, 35, 49, 0.94);
+  color: #f2f5f7;
+  overflow: auto;
+}
+
 @media (max-width: 900px) {
   .hero,
-  .grid-layout {
+  .grid-layout,
+  .compact-hero {
     grid-template-columns: 1fr;
   }
 
   .panel-wide {
-    grid-row: auto;
+    grid-column: span 1;
   }
 }

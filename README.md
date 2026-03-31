@@ -118,13 +118,16 @@ Representa compromisos de pago futuros:
 - fecha de vencimiento
 - estado de cumplimiento
 
-## Funcionalidades validadas hasta ahora
+## Funcionalidades actuales
 
-- Dashboard base de la Fase 2 compilando correctamente.
-- Base PostgreSQL levantada con Docker.
-- Sincronizacion del esquema Prisma con la base.
-- Build de produccion de Next.js funcionando.
-- Contenedor de la app respondiendo en `http://localhost:3000`.
+- Inicio de sesion por correo y contrasena.
+- Registro de usuarios desde UI.
+- Inicio de sesion con Google cuando se configuran las credenciales OAuth.
+- CRUD web para transacciones, deudas, abonos y recordatorios.
+- Dashboard alimentado desde PostgreSQL.
+- Tokens personales para integraciones.
+- API JSON protegida con `Bearer token`.
+- Base preparada para Atajos de iPhone y automatizaciones personales.
 
 ## Puesta en marcha local
 
@@ -181,6 +184,11 @@ Ejemplo actual:
 
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/asistente_contable?schema=public"
+AUTH_SECRET="cambia-este-secreto-por-uno-largo-y-aleatorio"
+NEXTAUTH_SECRET="cambia-este-secreto-por-uno-largo-y-aleatorio"
+NEXTAUTH_URL="http://localhost:3000"
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
 ```
 
 Dentro de Docker Compose, el servicio `app` usa internamente `db` como host de PostgreSQL.
@@ -196,6 +204,62 @@ npm run db:push
 npm run db:studio
 ```
 
+## Autenticacion y guards
+
+La aplicacion ahora usa autenticacion web con `Auth.js`:
+
+- login por correo y contrasena
+- registro de usuarios desde `/registro`
+- login con Google cuando configuras OAuth
+- proteccion de rutas privadas mediante `proxy.ts`
+- proteccion de integraciones API mediante `Bearer token`
+
+Las rutas privadas web no se pueden abrir solo con conocer la URL. Si no existe sesion valida, el usuario es redirigido a `/login`.
+
+### Como activar Google Sign-In
+
+1. Crea un proyecto en Google Cloud Console.
+2. Configura OAuth 2.0 para aplicacion web.
+3. Agrega como redirect URI:
+
+```text
+http://localhost:3000/api/auth/callback/google
+```
+
+4. Copia `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` al `.env`.
+5. Define tambien `AUTH_SECRET`.
+
+## API para integraciones moviles
+
+Endpoints iniciales:
+
+- `GET /api/v1/transactions`
+- `POST /api/v1/transactions`
+- `GET /api/v1/debts`
+- `POST /api/v1/debts`
+- `POST /api/v1/debts/:debtId/payments`
+- `GET /api/v1/reminders`
+- `POST /api/v1/reminders`
+
+Autorizacion:
+
+```http
+Authorization: Bearer TU_TOKEN
+```
+
+Ejemplo de creacion de transaccion:
+
+```json
+{
+  "description": "Pago almuerzo",
+  "amount": 24000,
+  "type": "EXPENSE",
+  "category": "Mercado",
+  "paymentMethod": "NEQUI",
+  "transactionAt": "2026-03-30"
+}
+```
+
 ## Archivos importantes
 
 - `package.json`: dependencias y scripts del proyecto.
@@ -208,49 +272,51 @@ npm run db:studio
 
 ## Estado de validacion tecnica
 
-Se ejecuto y valido lo siguiente:
+En esta etapa deberia validarse:
 
 - `npm install`
 - `npx prisma db push`
 - `npm run build`
-- `docker compose up -d --build app`
-- verificacion HTTP `200` en `http://localhost:3000`
+- `docker compose up -d --build`
+- registro de usuario
+- login por credenciales
+- consumo de API con token generado desde `/integraciones`
 
 ## Roadmap recomendado
 
 ### Fase 3
 
-- Formularios reales para crear ingresos, gastos, deudas y recordatorios.
-- Persistencia real con Prisma desde acciones del servidor o API routes.
-- Dashboard con calculos mensuales reales.
+- Presupuesto mensual por categoria.
 - Filtros por periodo, categoria y metodo de pago.
+- Marcado de recordatorios como pagados.
+- Edicion y eliminacion de movimientos existentes.
 
 ### Fase 4
 
-- Presupuesto mensual por categoria.
 - Alertas mas inteligentes por sobreconsumo.
 - Historial de pagos de deuda y proyeccion de saldo.
 - Panel de metricas mensuales y comparativos.
+- Dashboard de categorias y metodos de pago.
 
 ### Fase 5
 
-- Autenticacion personal.
 - Sincronizacion entre dispositivos.
-- Integracion con Atajos de iPhone.
+- Integracion avanzada con Atajos de iPhone.
 - Notificaciones por push, correo, Telegram o WhatsApp.
+- Automatizaciones programadas de recordatorios y cierre mensual.
 
 ## Consideraciones actuales
 
-- El dashboard de `Next.js` usa datos semilla en `lib/seed-data.ts`.
 - El MVP estatico sigue presente para referencia funcional.
-- Aun no existe autenticacion.
-- Aun no hay CRUD conectado a la base en la UI.
+- El dashboard principal ya usa datos reales desde Prisma.
+- `lib/seed-data.ts` puede retirarse en una limpieza futura.
+- La API actual esta pensada para uso personal y controlado.
 
 ## Siguiente paso sugerido
 
 El paso con mejor retorno ahora mismo es implementar:
 
-1. Modelo de acceso a base de datos con Prisma Client.
-2. Formularios reales para crear transacciones, deudas y recordatorios.
-3. Dashboard alimentado por datos persistidos.
-4. Base para endpoints o server actions orientadas a integraciones moviles.
+1. Presupuesto mensual por categoria.
+2. Edicion y eliminacion de registros desde la UI.
+3. Shortcut de iPhone para captura rapida de gastos.
+4. Alertas y recordatorios activos fuera del dashboard.
