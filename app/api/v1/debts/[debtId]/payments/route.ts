@@ -33,7 +33,10 @@ export async function POST(
       annualEffectiveRate: debt.annualEffectiveRate?.toNumber() ?? null,
       monthlyPayment: debt.monthlyPayment?.toNumber() ?? null,
       creditLimit: debt.creditLimit?.toNumber() ?? null,
-      minimumPaymentRate: debt.minimumPaymentRate?.toNumber() ?? null
+      minimumPaymentAmount: debt.minimumPaymentAmount?.toNumber() ?? null,
+      dueDayOfMonth: debt.dueDayOfMonth,
+      statementDayOfMonth: debt.statementDayOfMonth,
+      statementDayPurchasesToNextCycle: debt.statementDayPurchasesToNextCycle
     },
     amount
   );
@@ -71,10 +74,14 @@ export async function POST(
     ...updatedDebt,
     initialAmount: updatedDebt.initialAmount.toNumber(),
     currentAmount: updatedDebt.currentAmount.toNumber(),
+    installmentCount: updatedDebt.installmentCount,
     startedAt: updatedDebt.startedAt,
     annualEffectiveRate: updatedDebt.annualEffectiveRate?.toNumber() ?? null,
     monthlyPayment: updatedDebt.monthlyPayment?.toNumber() ?? null,
     creditLimit: updatedDebt.creditLimit?.toNumber() ?? null,
-    minimumPaymentRate: updatedDebt.minimumPaymentRate?.toNumber() ?? null
+    minimumPaymentAmount: updatedDebt.minimumPaymentAmount?.toNumber() ?? null,
+    dueDayOfMonth: updatedDebt.dueDayOfMonth,
+    statementDayOfMonth: updatedDebt.statementDayOfMonth,
+    statementDayPurchasesToNextCycle: updatedDebt.statementDayPurchasesToNextCycle
   });
 }

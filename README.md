@@ -1,159 +1,181 @@
 # AsistenteContable
 
-Aplicacion personal para llevar contabilidad y finanzas desde web y movil, con foco en ingresos, gastos, categorias, metodos de pago, deudas, recordatorios y futuras automatizaciones.
+Aplicación web personal para administrar ingresos, gastos, deudas, tarjetas y recordatorios con persistencia real en PostgreSQL, autenticación segura y despliegue con Docker.
 
-## Vision del producto
+## Qué Resuelve
 
-`AsistenteContable` nace para resolver una necesidad muy concreta: tener en un solo lugar el registro de la contabilidad personal, el seguimiento de gastos y el control progresivo de creditos o deudas.
+`AsistenteContable` está pensado para centralizar el control financiero personal en una sola aplicación:
 
-La idea es que el sistema permita:
+- registrar ingresos y gastos por categoría
+- guardar el método de pago de cada movimiento
+- controlar créditos, rotativos y tarjetas de crédito
+- estimar intereses, capital y tiempo de salida de una deuda
+- manejar ciclos financieros personalizados
+- crear recordatorios de pago y alarmas
+- exponer una API segura para integraciones como Atajos de iPhone
 
-- Registrar ingresos como nomina, honorarios u otras entradas.
-- Registrar gastos discriminados por categoria.
-- Guardar el metodo de pago usado en cada movimiento.
-- Hacer seguimiento al saldo pendiente de creditos y deudas.
-- Crear recordatorios para pagos mensuales.
-- Detectar cuando el gasto del mes crece demasiado frente a los ingresos.
-- Usarse tanto desde navegador como desde celular.
-- Evolucionar a integraciones con Atajos de iPhone, recordatorios y notificaciones.
+## Stack Definitivo
 
-## Estado del proyecto
-
-Actualmente el repositorio tiene dos capas de trabajo:
-
-- Un MVP estatico para validar rapidamente el flujo de negocio.
-- Una base moderna para evolucionar a una app real con persistencia, backend y despliegue con Docker.
-
-### MVP estatico
-
-Estos archivos permiten probar el concepto sin depender de backend:
-
-- `index.html`
-- `styles.css`
-- `app.js`
-- `manifest.json`
-- `service-worker.js`
-
-Este MVP usa `localStorage` para guardar datos en el navegador.
-
-### Fase 2
-
-La nueva base ya esta preparada con:
-
-- `Next.js`
+- `Next.js 15`
+- `React 19`
 - `TypeScript`
-- `PostgreSQL`
+- `PostgreSQL 16`
 - `Prisma`
-- `Docker`
-- `Docker Compose`
+- `NextAuth`
+- `Docker` y `Docker Compose`
 
-Esta capa es la que vamos a usar para convertir la idea en una aplicacion real y sincronizable.
-
-## Tecnologias principales
-
-- `Next.js 15`: frontend y base para backend web.
-- `React 19`: capa de UI.
-- `TypeScript`: tipado y mantenibilidad.
-- `PostgreSQL 16`: persistencia principal.
-- `Prisma`: modelado y acceso a datos.
-- `Docker`: entorno reproducible.
-- `Docker Compose`: orquestacion local de app y base de datos.
-
-## Arquitectura inicial
-
-La estructura base del proyecto es:
+## Arquitectura
 
 ```text
 AsistenteContable/
-├─ app/                  # App Router de Next.js
-├─ components/           # Componentes de UI reutilizables
-├─ lib/                  # Utilidades y datos semilla temporales
-├─ prisma/               # Esquema de base de datos
-├─ public/               # Archivos publicos
-├─ Dockerfile            # Imagen de la aplicacion
-├─ docker-compose.yml    # Servicios locales
-├─ package.json          # Scripts y dependencias
+├─ app/                         # App Router y endpoints
+├─ components/                  # UI reutilizable
+├─ lib/                         # auth, datos, finanzas y notificaciones
+├─ prisma/                      # esquema de base de datos
+├─ public/                      # activos públicos
+├─ Dockerfile
+├─ docker-compose.yml
+├─ package.json
 └─ README.md
 ```
 
-## Modelo de dominio actual
+## Módulos Principales
 
-El esquema inicial contempla estas entidades:
+### Autenticación
 
-### `Transaction`
+- login con correo y contraseña
+- registro de usuarios desde UI
+- login con Google opcional
+- guards para rutas privadas
+- sesión con expiración por inactividad
 
-Representa ingresos y gastos con:
+### Movimientos
 
-- descripcion
-- monto
-- tipo (`INCOME` o `EXPENSE`)
-- categoria
-- metodo de pago
-- fecha del movimiento
+- ingresos y gastos
+- categorías configuradas en UI
+- método de pago
+- soporte para compras con tarjeta en cuotas
+- impacto directo en balance del ciclo
 
-### `Debt`
+### Deudas Y Tarjetas
 
-Representa una deuda o credito con:
+- crédito de tasa fija
+- crédito rotativo
+- tarjeta de crédito
+- pagos registrados con separación estimada entre interés y capital
+- progreso real del saldo
+- fecha estimada de última cuota
+- simulación comparando cuota actual vs cuota aumentada
 
-- nombre
-- saldo inicial
-- saldo actual
-- pago mensual esperado
-- dia de pago opcional
+### Ciclo Financiero
 
-### `DebtPayment`
+- ciclo configurable con fecha exacta de inicio y fin
+- el balance del periodo usa ese ciclo en lugar del mes calendario
 
-Representa cada abono a una deuda:
+### Recordatorios
 
-- monto abonado
-- fecha del pago
-- relacion con la deuda
+Hay dos tipos de recordatorio:
 
-### `Reminder`
+- `PAYMENT`
+  Notifica desde `N` días antes de la fecha de pago y deja de avisar cuando se registra como completado.
 
-Representa compromisos de pago futuros:
+- `ALARM`
+  Dispara la notificación en una fecha y hora exactas.
 
-- titulo
-- monto estimado
-- fecha de vencimiento
-- estado de cumplimiento
+Cada recordatorio puede activar uno o varios canales:
 
-## Funcionalidades actuales
+- correo
+- push
+- WhatsApp
 
-- Inicio de sesion por correo y contrasena.
-- Registro de usuarios desde UI.
-- Inicio de sesion con Google cuando se configuran las credenciales OAuth.
-- CRUD web para transacciones, deudas, abonos y recordatorios.
-- Dashboard alimentado desde PostgreSQL.
-- Tokens personales para integraciones.
-- API JSON protegida con `Bearer token`.
-- Base preparada para Atajos de iPhone y automatizaciones personales.
+Además, el sistema guarda un historial de entregas por canal para evitar duplicados y dar trazabilidad.
 
-## Puesta en marcha local
+### Integraciones
 
-### Opcion 1: desarrollo local con Node
+- API protegida por `Bearer token`
+- endpoint interno para despachar recordatorios por cron
+- endpoint para registrar suscripciones Web Push
 
-1. Copia el archivo de variables:
+## Modelo De Datos
 
-```bash
-cp .env.example .env
+Las entidades principales son:
+
+- `User`
+- `Session`
+- `ApiToken`
+- `Transaction`
+- `Debt`
+- `DebtPayment`
+- `Reminder`
+- `ReminderDelivery`
+- `PushSubscription`
+
+## Variables De Entorno
+
+Ejemplo base:
+
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/asistente_contable?schema=public"
+AUTH_SECRET="cambia-este-secreto"
+NEXTAUTH_SECRET="cambia-este-secreto"
+NEXTAUTH_URL="http://localhost:3000"
+
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+
+CRON_SECRET=""
+
+SMTP_HOST=""
+SMTP_PORT="587"
+SMTP_SECURE="false"
+SMTP_USER=""
+SMTP_PASS=""
+SMTP_FROM=""
+
+WEB_PUSH_PUBLIC_KEY=""
+WEB_PUSH_PRIVATE_KEY=""
+WEB_PUSH_SUBJECT="mailto:tu-correo@ejemplo.com"
+
+WHATSAPP_ACCESS_TOKEN=""
+WHATSAPP_PHONE_NUMBER_ID=""
+WHATSAPP_TO=""
 ```
 
-En Windows PowerShell puedes crear `.env` manualmente tomando como base `.env.example`.
+Notas:
 
+- `.env` no se sube al repositorio
+- `DATABASE_URL` dentro de Docker se resuelve contra el host `db`
+- `CRON_SECRET` protege el endpoint interno de despachos
+
+## Puesta En Marcha
+
+### Opción 1: Docker
+
+```bash
+docker compose up -d --build
+```
+
+Esto levanta:
+
+- app en `http://localhost:3000`
+- PostgreSQL en `localhost:5432`
+
+### Opción 2: Desarrollo Local
+
+1. Crea `.env` usando `.env.example`
 2. Instala dependencias:
 
 ```bash
 npm install
 ```
 
-3. Levanta la base de datos:
+3. Levanta la base:
 
 ```bash
 docker compose up -d db
 ```
 
-4. Sincroniza el esquema:
+4. Sincroniza Prisma:
 
 ```bash
 npx prisma db push
@@ -165,35 +187,7 @@ npx prisma db push
 npm run dev
 ```
 
-La app quedara disponible en `http://localhost:3000`.
-
-### Opcion 2: entorno completo con Docker
-
-```bash
-docker compose up -d --build
-```
-
-Esto levanta:
-
-- `app` en `http://localhost:3000`
-- `db` PostgreSQL en `localhost:5432`
-
-## Variables de entorno
-
-Ejemplo actual:
-
-```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/asistente_contable?schema=public"
-AUTH_SECRET="cambia-este-secreto-por-uno-largo-y-aleatorio"
-NEXTAUTH_SECRET="cambia-este-secreto-por-uno-largo-y-aleatorio"
-NEXTAUTH_URL="http://localhost:3000"
-GOOGLE_CLIENT_ID=""
-GOOGLE_CLIENT_SECRET=""
-```
-
-Dentro de Docker Compose, el servicio `app` usa internamente `db` como host de PostgreSQL.
-
-## Scripts disponibles
+## Scripts
 
 ```bash
 npm run dev
@@ -204,119 +198,106 @@ npm run db:push
 npm run db:studio
 ```
 
-## Autenticacion y guards
+## Autenticación
 
-La aplicacion ahora usa autenticacion web con `Auth.js`:
+La aplicación protege las pantallas privadas y la API:
 
-- login por correo y contrasena
-- registro de usuarios desde `/registro`
-- login con Google cuando configuras OAuth
-- proteccion de rutas privadas mediante `proxy.ts`
-- proteccion de integraciones API mediante `Bearer token`
+- rutas privadas redirigen a `/login` si no hay sesión
+- la API de integraciones exige `Authorization: Bearer TU_TOKEN`
+- el login con Google se habilita solo si existen credenciales OAuth válidas
 
-Las rutas privadas web no se pueden abrir solo con conocer la URL. Si no existe sesion valida, el usuario es redirigido a `/login`.
-
-### Como activar Google Sign-In
-
-1. Crea un proyecto en Google Cloud Console.
-2. Configura OAuth 2.0 para aplicacion web.
-3. Agrega como redirect URI:
+Redirect URI local para Google:
 
 ```text
 http://localhost:3000/api/auth/callback/google
 ```
 
-4. Copia `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` al `.env`.
-5. Define tambien `AUTH_SECRET`.
+## API Disponible
 
-## API para integraciones moviles
-
-Endpoints iniciales:
+### Transacciones
 
 - `GET /api/v1/transactions`
 - `POST /api/v1/transactions`
+
+### Deudas
+
 - `GET /api/v1/debts`
 - `POST /api/v1/debts`
 - `POST /api/v1/debts/:debtId/payments`
+
+### Recordatorios
+
 - `GET /api/v1/reminders`
 - `POST /api/v1/reminders`
 
-Autorizacion:
+### Push
+
+- `POST /api/push/subscriptions`
+
+### Despachador Interno
+
+- `POST /api/internal/reminders/dispatch`
+
+Header requerido:
 
 ```http
-Authorization: Bearer TU_TOKEN
+x-cron-secret: TU_CRON_SECRET
 ```
 
-Ejemplo de creacion de transaccion:
+## Notificaciones
 
-```json
-{
-  "description": "Pago almuerzo",
-  "amount": 24000,
-  "type": "EXPENSE",
-  "category": "Mercado",
-  "paymentMethod": "NEQUI",
-  "transactionAt": "2026-03-30"
-}
-```
+### Correo
 
-## Archivos importantes
+Ya está operativo con SMTP. Necesitas:
 
-- `package.json`: dependencias y scripts del proyecto.
-- `docker-compose.yml`: servicios `app` y `db`.
-- `Dockerfile`: definicion de la imagen de la aplicacion.
-- `prisma/schema.prisma`: modelo de datos inicial.
-- `app/page.tsx`: dashboard base de la app.
-- `app/globals.css`: sistema visual inicial.
-- `.env.example`: ejemplo de configuracion local.
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_SECURE`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_FROM`
 
-## Estado de validacion tecnica
+### Push
 
-En esta etapa deberia validarse:
+La estructura quedó preparada para:
+
+- registrar suscripciones del navegador
+- almacenar endpoints por usuario
+- despachar recordatorios por Web Push
+
+Para habilitarlo totalmente faltan:
+
+- claves VAPID reales
+- cliente frontend que solicite permisos y registre la suscripción
+- envío efectivo al endpoint de cada suscripción
+
+### WhatsApp
+
+La integración quedó preparada para Meta WhatsApp Cloud API. Necesitas:
+
+- `WHATSAPP_ACCESS_TOKEN`
+- `WHATSAPP_PHONE_NUMBER_ID`
+- `WHATSAPP_TO`
+
+## Validación Técnica
+
+Flujos ya validados en el proyecto:
 
 - `npm install`
 - `npx prisma db push`
+- `npm run lint`
 - `npm run build`
 - `docker compose up -d --build`
-- registro de usuario
-- login por credenciales
-- consumo de API con token generado desde `/integraciones`
 
-## Roadmap recomendado
+## Estado Del Repositorio
 
-### Fase 3
+El repositorio ya no conserva el MVP estático anterior. La base activa y soportada del producto es únicamente la aplicación moderna sobre `Next.js + Prisma + PostgreSQL + Docker`.
 
-- Presupuesto mensual por categoria.
-- Filtros por periodo, categoria y metodo de pago.
-- Marcado de recordatorios como pagados.
-- Edicion y eliminacion de movimientos existentes.
+## Roadmap Sugerido
 
-### Fase 4
-
-- Alertas mas inteligentes por sobreconsumo.
-- Historial de pagos de deuda y proyeccion de saldo.
-- Panel de metricas mensuales y comparativos.
-- Dashboard de categorias y metodos de pago.
-
-### Fase 5
-
-- Sincronizacion entre dispositivos.
-- Integracion avanzada con Atajos de iPhone.
-- Notificaciones por push, correo, Telegram o WhatsApp.
-- Automatizaciones programadas de recordatorios y cierre mensual.
-
-## Consideraciones actuales
-
-- El MVP estatico sigue presente para referencia funcional.
-- El dashboard principal ya usa datos reales desde Prisma.
-- `lib/seed-data.ts` puede retirarse en una limpieza futura.
-- La API actual esta pensada para uso personal y controlado.
-
-## Siguiente paso sugerido
-
-El paso con mejor retorno ahora mismo es implementar:
-
-1. Presupuesto mensual por categoria.
-2. Edicion y eliminacion de registros desde la UI.
-3. Shortcut de iPhone para captura rapida de gastos.
-4. Alertas y recordatorios activos fuera del dashboard.
+- edición y eliminación de transacciones y deudas desde UI
+- presupuestos por categoría
+- envío real de Web Push
+- automatización periódica del despachador
+- historial avanzado y reportes por periodo
+- despliegue productivo en servidor

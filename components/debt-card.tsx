@@ -1,4 +1,4 @@
-import { debtTypeLabel, formatCurrency, formatPercent } from "@/lib/utils";
+import { debtTypeLabel, formatCurrency, formatDate, formatPercent } from "@/lib/utils";
 
 type Debt = {
   id: string;
@@ -6,16 +6,18 @@ type Debt = {
   type: "FIXED_INSTALLMENT" | "REVOLVING_CREDIT" | "CREDIT_CARD";
   initialAmount: number;
   currentAmount: number;
+  installmentCount: number | null;
   annualEffectiveRate: number | null;
   monthlyPayment: number | null;
   creditLimit: number | null;
-  minimumPaymentRate: number | null;
+  minimumPaymentAmount: number | null;
   startedAt: string | Date | null;
   totalPaidAmount: number;
   totalPrincipalPaid: number;
   totalInterestPaid: number;
   dueDayOfMonth: number | null;
   statementDayOfMonth: number | null;
+  statementDayPurchasesToNextCycle: boolean;
   projection: {
     estimatedInterest: number;
     estimatedPrincipal: number;
@@ -23,6 +25,19 @@ type Debt = {
     utilization: number | null;
     payoffMonths: number | null;
     estimatedPayoffDate: string | Date | null;
+    installmentPlan: {
+      firstPaymentDate: string | Date;
+      finalPaymentDate: string | Date;
+      paidInstallments: number;
+      remainingInstallments: number;
+      totalInstallments: number;
+    } | null;
+    cardCycle: {
+      nextStatementDate: string | Date;
+      nextPaymentDate: string | Date;
+      minimumPaymentAmount: number;
+      statementDayPurchasesToNextCycle: boolean;
+    } | null;
   };
   payments: Array<{
     id: string;
@@ -95,6 +110,18 @@ export function DebtCard({ debt }: { debt: Debt }) {
 
       <div className="info-lines">
         {debt.dueDayOfMonth ? <p className="meta">Pago mensual: dia {debt.dueDayOfMonth}</p> : null}
+        {debt.installmentCount ? <p className="meta">Cuotas pactadas: {debt.installmentCount}</p> : null}
+        {debt.projection.installmentPlan ? (
+          <>
+            <p className="meta">
+              Cuotas pagadas a la fecha: {debt.projection.installmentPlan.paidInstallments} de{" "}
+              {debt.projection.installmentPlan.totalInstallments}
+            </p>
+            <p className="meta">
+              Cuotas restantes: {debt.projection.installmentPlan.remainingInstallments}
+            </p>
+          </>
+        ) : null}
         {debt.statementDayOfMonth ? <p className="meta">Corte estimado: dia {debt.statementDayOfMonth}</p> : null}
         {debt.creditLimit ? (
           <p className="meta">
@@ -102,8 +129,22 @@ export function DebtCard({ debt }: { debt: Debt }) {
             {debt.projection.utilization !== null ? ` (${formatPercent(debt.projection.utilization)})` : ""}
           </p>
         ) : null}
-        {debt.minimumPaymentRate ? (
-          <p className="meta">Pago minimo configurado: {formatPercent(debt.minimumPaymentRate, 2)}</p>
+        {debt.minimumPaymentAmount ? (
+          <p className="meta">Pago minimo configurado: {formatCurrency(debt.minimumPaymentAmount)}</p>
+        ) : null}
+        {debt.projection.cardCycle ? (
+          <>
+            <p className="meta">
+              Proximo corte: {formatDate(debt.projection.cardCycle.nextStatementDate)}. Proximo pago:{" "}
+              {formatDate(debt.projection.cardCycle.nextPaymentDate)}.
+            </p>
+            <p className="meta">
+              Compras hechas el dia de corte:{" "}
+              {debt.projection.cardCycle.statementDayPurchasesToNextCycle
+                ? "van al siguiente pago"
+                : "entran en este mismo corte"}
+            </p>
+          </>
         ) : null}
         <p className="meta">
           Valor inicial {formatCurrency(debt.initialAmount)} {"->"} saldo actual {formatCurrency(debt.currentAmount)}.
@@ -114,7 +155,8 @@ export function DebtCard({ debt }: { debt: Debt }) {
         </p>
         {debt.projection.payoffMonths ? (
           <p className="meta">
-            Tiempo estimado para salir: {debt.projection.payoffMonths} mes(es)
+            {debt.projection.installmentPlan ? "Tiempo restante segun plan: " : "Tiempo estimado para salir: "}
+            {debt.projection.payoffMonths} mes(es)
             {debt.projection.estimatedPayoffDate
               ? ` · ultima cuota aprox. ${new Intl.DateTimeFormat("es-CO", {
                   year: "numeric",

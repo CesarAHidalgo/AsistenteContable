@@ -39,6 +39,7 @@ export async function POST(request: Request) {
       type: String(body.type ?? "EXPENSE") as TransactionType,
       category: String(body.category ?? "Otros"),
       paymentMethod: String(body.paymentMethod ?? "OTHER") as PaymentMethod,
+      installmentCount: body.installmentCount ? Number(body.installmentCount) : null,
       transactionAt: new Date(String(body.transactionAt ?? new Date().toISOString()))
     }
   });

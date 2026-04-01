@@ -175,7 +175,7 @@ export default async function Home({
             <ul className="plain-list">
               <li>La cuota estimada usa tu tasa EA para aproximar interes mensual.</li>
               <li>En credito fijo compara la cuota que configuraste contra el interes estimado.</li>
-              <li>En rotativos y tarjetas se muestra un pago minimo estimado usando el porcentaje minimo.</li>
+              <li>En rotativos y tarjetas se muestra el valor minimo configurado o el pago estimado segun el caso.</li>
               <li>El capital del pago reduce la deuda; el interes te ayuda a ver si vale subir la cuota.</li>
               <li>La fecha estimada de ultima cuota toma como base la fecha de inicio del credito.</li>
             </ul>
@@ -221,6 +221,15 @@ export default async function Home({
         <section className="grid-layout dashboard-grid">
           <SectionCard kicker="Recordatorios" title="Nuevo recordatorio">
             <ReminderForm />
+          </SectionCard>
+
+          <SectionCard kicker="Notificaciones" title="Como funcionan">
+            <ul className="plain-list">
+              <li>Los recordatorios de pago pueden avisar desde varios dias antes y paran al marcar el pago como realizado.</li>
+              <li>Las alarmas usan la fecha y hora exactas que configures para disparar la notificacion.</li>
+              <li>Desde cada tarjeta puedes completar, editar o eliminar el recordatorio.</li>
+              <li>El envio automatico se ejecuta desde un endpoint interno pensado para cron y soporta correo hoy, con push y WhatsApp listos para habilitar.</li>
+            </ul>
           </SectionCard>
 
           <SectionCard kicker="Agenda" title="Todos los recordatorios" wide>

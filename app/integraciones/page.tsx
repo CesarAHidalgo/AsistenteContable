@@ -85,6 +85,24 @@ Content-Type: application/json
 }`}
           </pre>
         </SectionCard>
+
+        <SectionCard kicker="Recordatorios" title="Despachador automatico">
+          <pre className="code-card">
+{`POST /api/internal/reminders/dispatch
+x-cron-secret: TU_CRON_SECRET`}
+          </pre>
+          <p className="empty-state">
+            Este endpoint interno esta pensado para que un cron o programador lo ejecute periodicamente y
+            procese correo, push o WhatsApp segun el tipo de recordatorio y su ventana de aviso.
+          </p>
+        </SectionCard>
+
+        <SectionCard kicker="Canales" title="Configuracion de notificaciones">
+          <p className="empty-state">
+            Correo queda operativo con SMTP. Push y WhatsApp quedan preparados para habilitarlos cuando
+            registres suscripciones web push o credenciales del proveedor.
+          </p>
+        </SectionCard>
       </section>
     </main>
   );

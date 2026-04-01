@@ -17,6 +17,18 @@ export function formatDate(value: string | Date) {
   }).format(new Date(normalized));
 }
 
+export function formatDateTime(value: string | Date) {
+  const normalized = value instanceof Date ? value : new Date(value);
+
+  return new Intl.DateTimeFormat("es-CO", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(normalized);
+}
+
 export function paymentMethodLabel(value: string) {
   const labels: Record<string, string> = {
     BANK_TRANSFER: "Transferencia",

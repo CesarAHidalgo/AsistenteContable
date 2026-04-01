@@ -43,6 +43,11 @@ textarea {
   font: inherit;
 }
 
+input[type="checkbox"] {
+  width: auto;
+  padding: 0;
+}
+
 label {
   display: grid;
   gap: 6px;
@@ -363,6 +368,64 @@ button {
   margin-top: 8px;
 }
 
+.form-legend {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(22, 75, 91, 0.08);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.field-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.field-pill.required {
+  background: rgba(180, 74, 43, 0.12);
+  color: var(--danger);
+}
+
+.field-pill.optional {
+  background: rgba(15, 118, 110, 0.12);
+  color: var(--primary-deep);
+}
+
+.field-required {
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.field-help {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.checkbox-label {
+  gap: 10px;
+}
+
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+}
+
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -392,6 +455,47 @@ button {
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 10px;
+}
+
+.reminder-card.is-completed {
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.reminder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 14px;
+}
+
+.inline-editor {
+  min-width: min(100%, 340px);
+}
+
+.inline-editor summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.inline-editor summary::-webkit-details-marker {
+  display: none;
+}
+
+.inline-form {
+  margin-top: 12px;
+}
+
+.destructive-button {
+  color: var(--danger);
+  border-color: rgba(180, 74, 43, 0.2);
 }
 
 .debt-card {
@@ -484,6 +588,37 @@ button {
   background: rgba(23, 35, 49, 0.94);
   color: #f2f5f7;
   overflow: auto;
+}
+
+.session-modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(23, 35, 49, 0.45);
+  backdrop-filter: blur(6px);
+  z-index: 1000;
+}
+
+.session-modal {
+  width: min(460px, 100%);
+  padding: 24px;
+  border-radius: 28px;
+  border: 1px solid var(--line);
+  background: rgba(255, 252, 247, 0.96);
+  box-shadow: var(--shadow);
+}
+
+.session-modal h2 {
+  margin: 0 0 12px;
+  font-size: 1.5rem;
+}
+
+.session-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
 }
 
 @media (max-width: 900px) {

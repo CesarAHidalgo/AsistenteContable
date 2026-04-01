@@ -16,6 +16,10 @@ function requiredString(value: FormDataEntryValue | null) {
   return String(value ?? "").trim();
 }
 
+function checked(value: FormDataEntryValue | null) {
+  return value === "on" || value === "true";
+}
+
 export async function registerAction(formData: FormData) {
   const name = requiredString(formData.get("name"));
   const email = requiredString(formData.get("email")).toLowerCase();
@@ -51,6 +55,7 @@ export async function registerAction(formData: FormData) {
 
 export async function createTransactionAction(formData: FormData) {
   const user = await requireUser();
+  const installmentCount = Number(formData.get("installmentCount") || 0);
 
   await prisma.transaction.create({
     data: {
@@ -60,6 +65,7 @@ export async function createTransactionAction(formData: FormData) {
       type: requiredString(formData.get("type")) as TransactionType,
       category: requiredString(formData.get("category")),
       paymentMethod: requiredString(formData.get("paymentMethod")) as PaymentMethod,
+      installmentCount: installmentCount > 0 ? installmentCount : null,
       transactionAt: new Date(requiredString(formData.get("transactionAt")))
     }
   });
@@ -69,29 +75,37 @@ export async function createTransactionAction(formData: FormData) {
 
 export async function createDebtAction(formData: FormData) {
   const user = await requireUser();
-  const initialAmount = parseAmount(formData.get("initialAmount"));
-  const currentAmount = parseAmount(formData.get("currentAmount")) || initialAmount;
+  const requestedType = requiredString(formData.get("type")) as DebtType;
+  const rawInitialAmount = parseAmount(formData.get("initialAmount"));
+  const currentAmount = parseAmount(formData.get("currentAmount")) || rawInitialAmount;
+  const initialAmount =
+    requestedType === "CREDIT_CARD" ? rawInitialAmount || currentAmount : rawInitialAmount;
   const monthlyPayment = parseAmount(formData.get("monthlyPayment"));
   const annualEffectiveRate = parseAmount(formData.get("annualEffectiveRate"));
   const creditLimit = parseAmount(formData.get("creditLimit"));
-  const minimumPaymentRate = parseAmount(formData.get("minimumPaymentRate"));
+  const minimumPaymentAmount = parseAmount(formData.get("minimumPaymentAmount"));
+  const installmentCount = Number(formData.get("installmentCount") || 0);
   const dueDay = Number(formData.get("dueDayOfMonth") || 0);
   const statementDay = Number(formData.get("statementDayOfMonth") || 0);
+  const statementDayPurchasesToNextCycle =
+    requiredString(formData.get("statementDayPurchasesToNextCycle")) === "true";
 
   await prisma.debt.create({
     data: {
       userId: user.id,
       name: requiredString(formData.get("name")),
-      type: requiredString(formData.get("type")) as DebtType,
+      type: requestedType,
       initialAmount,
       currentAmount,
+      installmentCount: installmentCount > 0 ? installmentCount : null,
       startedAt: formData.get("startedAt") ? new Date(requiredString(formData.get("startedAt"))) : null,
       annualEffectiveRate: annualEffectiveRate || null,
       monthlyPayment: monthlyPayment || null,
       creditLimit: creditLimit || null,
-      minimumPaymentRate: minimumPaymentRate || null,
+      minimumPaymentAmount: minimumPaymentAmount || null,
       dueDayOfMonth: dueDay || null,
-      statementDayOfMonth: statementDay || null
+      statementDayOfMonth: statementDay || null,
+      statementDayPurchasesToNextCycle
     }
   });
 
@@ -123,14 +137,82 @@ export async function updateBillingCycleAction(formData: FormData) {
 export async function createReminderAction(formData: FormData) {
   const user = await requireUser();
   const amount = parseAmount(formData.get("amount"));
+  const type = requiredString(formData.get("type")) as "PAYMENT" | "ALARM";
+  const dueDate = new Date(requiredString(formData.get("dueDate")));
+  const notificationAtRaw = requiredString(formData.get("notificationAt"));
+  const notificationAt = notificationAtRaw ? new Date(notificationAtRaw) : null;
+  const notifyDaysBefore = Number(formData.get("notifyDaysBefore") || 5);
 
   await prisma.reminder.create({
     data: {
       userId: user.id,
       title: requiredString(formData.get("title")),
+      type,
       amount: amount || null,
-      dueDate: new Date(requiredString(formData.get("dueDate")))
+      dueDate,
+      notificationAt: type === "ALARM" ? notificationAt : null,
+      notifyDaysBefore: type === "PAYMENT" ? notifyDaysBefore : 0,
+      notifyEmail: checked(formData.get("notifyEmail")),
+      notifyPush: checked(formData.get("notifyPush")),
+      notifyWhatsApp: checked(formData.get("notifyWhatsApp"))
     }
+  });
+
+  revalidatePath("/");
+}
+
+export async function updateReminderAction(formData: FormData) {
+  const user = await requireUser();
+  const reminderId = requiredString(formData.get("reminderId"));
+  const amount = parseAmount(formData.get("amount"));
+  const type = requiredString(formData.get("type")) as "PAYMENT" | "ALARM";
+  const dueDate = new Date(requiredString(formData.get("dueDate")));
+  const notificationAtRaw = requiredString(formData.get("notificationAt"));
+  const notificationAt = notificationAtRaw ? new Date(notificationAtRaw) : null;
+  const notifyDaysBefore = Number(formData.get("notifyDaysBefore") || 5);
+
+  await prisma.reminder.updateMany({
+    where: { id: reminderId, userId: user.id },
+    data: {
+      title: requiredString(formData.get("title")),
+      type,
+      amount: amount || null,
+      dueDate,
+      notificationAt: type === "ALARM" ? notificationAt : null,
+      notifyDaysBefore: type === "PAYMENT" ? notifyDaysBefore : 0,
+      notifyEmail: checked(formData.get("notifyEmail")),
+      notifyPush: checked(formData.get("notifyPush")),
+      notifyWhatsApp: checked(formData.get("notifyWhatsApp")),
+      lastNotifiedAt: null
+    }
+  });
+
+  revalidatePath("/");
+}
+
+export async function toggleReminderCompletionAction(formData: FormData) {
+  const user = await requireUser();
+  const reminderId = requiredString(formData.get("reminderId"));
+  const nextState = requiredString(formData.get("nextState")) === "true";
+
+  await prisma.reminder.updateMany({
+    where: { id: reminderId, userId: user.id },
+    data: {
+      isCompleted: nextState,
+      completedAt: nextState ? new Date() : null,
+      paymentRecordedAt: nextState ? new Date() : null
+    }
+  });
+
+  revalidatePath("/");
+}
+
+export async function deleteReminderAction(formData: FormData) {
+  const user = await requireUser();
+  const reminderId = requiredString(formData.get("reminderId"));
+
+  await prisma.reminder.deleteMany({
+    where: { id: reminderId, userId: user.id }
   });
 
   revalidatePath("/");
@@ -157,7 +239,10 @@ export async function createDebtPaymentAction(formData: FormData) {
       annualEffectiveRate: debt.annualEffectiveRate?.toNumber() ?? null,
       monthlyPayment: debt.monthlyPayment?.toNumber() ?? null,
       creditLimit: debt.creditLimit?.toNumber() ?? null,
-      minimumPaymentRate: debt.minimumPaymentRate?.toNumber() ?? null
+      minimumPaymentAmount: debt.minimumPaymentAmount?.toNumber() ?? null,
+      dueDayOfMonth: debt.dueDayOfMonth,
+      statementDayOfMonth: debt.statementDayOfMonth,
+      statementDayPurchasesToNextCycle: debt.statementDayPurchasesToNextCycle
     },
     amount
   );

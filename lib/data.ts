@@ -49,8 +49,8 @@ export async function getDashboardData(userId: string) {
     }),
     prisma.reminder.findMany({
       where: { userId },
-      orderBy: { dueDate: "asc" },
-      take: 8
+      orderBy: [{ isCompleted: "asc" }, { dueDate: "asc" }],
+      take: 20
     }),
     prisma.apiToken.findMany({
       where: { userId, revokedAt: null },
@@ -69,8 +69,19 @@ export async function getDashboardData(userId: string) {
   const totalDebt = debts.reduce((sum, item) => sum + item.currentAmount.toNumber(), 0);
 
   const dueSoon = reminders.filter((item) => {
+    if (item.isCompleted) {
+      return false;
+    }
+
+    if (item.type === "ALARM" && item.notificationAt) {
+      const diff = new Date(item.notificationAt).getTime() - Date.now();
+      const diffDays = diff / (1000 * 60 * 60 * 24);
+      return diffDays >= 0 && diffDays <= 5;
+    }
+
     const diff = new Date(item.dueDate).getTime() - Date.now();
-    return diff / (1000 * 60 * 60 * 24) <= 5;
+    const diffDays = diff / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= (item.notifyDaysBefore || 5);
   });
 
   return {
@@ -102,11 +113,15 @@ export async function getDashboardData(userId: string) {
       ...item,
       initialAmount: item.initialAmount.toNumber(),
       currentAmount: item.currentAmount.toNumber(),
+      installmentCount: item.installmentCount,
       startedAt: item.startedAt,
       annualEffectiveRate: decimalToNumber(item.annualEffectiveRate),
       monthlyPayment: decimalToNumber(item.monthlyPayment),
       creditLimit: decimalToNumber(item.creditLimit),
-      minimumPaymentRate: decimalToNumber(item.minimumPaymentRate),
+      minimumPaymentAmount: decimalToNumber(item.minimumPaymentAmount),
+      statementDayPurchasesToNextCycle: item.statementDayPurchasesToNextCycle,
+      dueDayOfMonth: item.dueDayOfMonth,
+      statementDayOfMonth: item.statementDayOfMonth,
       payments: item.payments.map((payment) => ({
         ...payment,
         amount: payment.amount.toNumber(),
@@ -122,11 +137,15 @@ export async function getDashboardData(userId: string) {
       projection: calculateDebtProjection({
         type: item.type,
         currentAmount: item.currentAmount.toNumber(),
+        installmentCount: item.installmentCount,
         startedAt: item.startedAt,
         annualEffectiveRate: decimalToNumber(item.annualEffectiveRate),
         monthlyPayment: decimalToNumber(item.monthlyPayment),
         creditLimit: decimalToNumber(item.creditLimit),
-        minimumPaymentRate: decimalToNumber(item.minimumPaymentRate)
+        minimumPaymentAmount: decimalToNumber(item.minimumPaymentAmount),
+        dueDayOfMonth: item.dueDayOfMonth,
+        statementDayOfMonth: item.statementDayOfMonth,
+        statementDayPurchasesToNextCycle: item.statementDayPurchasesToNextCycle
       })
     })),
     reminders: reminders.map((item) => ({

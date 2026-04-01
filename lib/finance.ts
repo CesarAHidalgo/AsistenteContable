@@ -3,10 +3,14 @@ import { DebtType } from "@prisma/client";
 type DebtLike = {
   type: DebtType;
   currentAmount: number;
+  installmentCount?: number | null;
   annualEffectiveRate: number | null;
   monthlyPayment: number | null;
   creditLimit: number | null;
-  minimumPaymentRate: number | null;
+  minimumPaymentAmount: number | null;
+  dueDayOfMonth?: number | null;
+  statementDayOfMonth?: number | null;
+  statementDayPurchasesToNextCycle?: boolean;
   startedAt?: Date | string | null;
 };
 
@@ -111,12 +115,19 @@ export function calculateDebtProjection(debt: DebtLike) {
     Math.min(balance, Math.max(0, normalizedPayment - estimatedInterest))
   );
   const nextBalance = roundCurrency(Math.max(0, balance - principalComponent));
-  const payoffMonths = principalComponent > 0 ? Math.ceil(balance / principalComponent) : null;
+  const amortizationPayoffMonths = principalComponent > 0 ? Math.ceil(balance / principalComponent) : null;
   const utilization =
     debt.creditLimit && debt.creditLimit > 0
       ? Math.min(999, (balance / debt.creditLimit) * 100)
       : null;
-  const estimatedPayoffDate = estimatePayoffDate(debt.startedAt, payoffMonths);
+  const installmentPlan = getInstallmentPlanInfo(
+    debt.startedAt,
+    debt.dueDayOfMonth ?? null,
+    debt.installmentCount ?? null
+  );
+  const payoffMonths = installmentPlan?.remainingInstallments ?? amortizationPayoffMonths;
+  const estimatedPayoffDate = installmentPlan?.finalPaymentDate ?? estimatePayoffDate(debt.startedAt, payoffMonths);
+  const cardCycle = debt.type === "CREDIT_CARD" ? getCreditCardCycleInfo(debt) : null;
 
   return {
     monthlyRate,
@@ -126,19 +137,26 @@ export function calculateDebtProjection(debt: DebtLike) {
     nextBalance,
     utilization,
     payoffMonths,
-    estimatedPayoffDate
+    estimatedPayoffDate,
+    cardCycle,
+    installmentPlan
   };
 }
 
 export function estimateMinimumPayment(
-  debt: Pick<DebtLike, "currentAmount" | "minimumPaymentRate" | "type">,
+  debt: Pick<DebtLike, "currentAmount" | "minimumPaymentAmount" | "type">,
   estimatedInterest = 0
 ) {
-  const baseRate = debt.minimumPaymentRate ?? (debt.type === "CREDIT_CARD" ? 5 : 4);
-  const capitalSlice = debt.currentAmount * (baseRate / 100);
-  return roundCurrency(
-    Math.min(debt.currentAmount + estimatedInterest, capitalSlice + estimatedInterest)
-  );
+  if (debt.type === "CREDIT_CARD" && debt.minimumPaymentAmount !== null) {
+    return roundCurrency(Math.min(debt.currentAmount + estimatedInterest, debt.minimumPaymentAmount));
+  }
+
+  if (debt.minimumPaymentAmount !== null) {
+    return roundCurrency(Math.min(debt.currentAmount + estimatedInterest, debt.minimumPaymentAmount));
+  }
+
+  const fallbackMinimum = debt.currentAmount + estimatedInterest;
+  return roundCurrency(fallbackMinimum);
 }
 
 export function splitDebtPayment(debt: DebtLike, paymentAmount: number) {
@@ -152,6 +170,28 @@ export function splitDebtPayment(debt: DebtLike, paymentAmount: number) {
   return {
     interestAmount: roundCurrency(interestAmount),
     principalAmount: roundCurrency(principalAmount)
+  };
+}
+
+export function getCreditCardCycleInfo(
+  debt: Pick<
+    DebtLike,
+    "dueDayOfMonth" | "statementDayOfMonth" | "statementDayPurchasesToNextCycle" | "minimumPaymentAmount" | "currentAmount"
+  >,
+  referenceDate = new Date()
+) {
+  if (!debt.statementDayOfMonth || !debt.dueDayOfMonth) {
+    return null;
+  }
+
+  const nextStatementDate = getNextDayOfMonth(referenceDate, debt.statementDayOfMonth, false);
+  const nextPaymentDate = getNextDayOfMonth(referenceDate, debt.dueDayOfMonth, true);
+
+  return {
+    nextStatementDate,
+    nextPaymentDate,
+    minimumPaymentAmount: debt.minimumPaymentAmount ?? 0,
+    statementDayPurchasesToNextCycle: debt.statementDayPurchasesToNextCycle ?? true
   };
 }
 
@@ -221,4 +261,83 @@ function addMonthsClamped(date: Date, months: number, endOfDay: boolean) {
   }
 
   return shifted;
+}
+
+function getNextDayOfMonth(referenceDate: Date, day: number, endOfDay: boolean) {
+  const candidateThisMonth = createClampedDate(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth(),
+    day
+  );
+  const isPast = endOfDay
+    ? referenceDate.getTime() > new Date(candidateThisMonth.setHours(23, 59, 59, 999)).getTime()
+    : referenceDate.getTime() > new Date(candidateThisMonth.setHours(0, 0, 0, 0)).getTime();
+
+  const result = isPast
+    ? createClampedDate(referenceDate.getFullYear(), referenceDate.getMonth() + 1, day)
+    : createClampedDate(referenceDate.getFullYear(), referenceDate.getMonth(), day);
+
+  if (endOfDay) {
+    result.setHours(23, 59, 59, 999);
+  } else {
+    result.setHours(0, 0, 0, 0);
+  }
+
+  return result;
+}
+
+function getInstallmentPlanInfo(
+  startedAt: Date | string | null | undefined,
+  dueDayOfMonth: number | null,
+  installmentCount: number | null,
+  referenceDate = new Date()
+) {
+  if (!startedAt || !installmentCount || installmentCount <= 0) {
+    return null;
+  }
+
+  const startDate = new Date(startedAt);
+  if (Number.isNaN(startDate.getTime())) {
+    return null;
+  }
+
+  const firstPaymentDate = getFirstPaymentDate(startDate, dueDayOfMonth);
+  const finalPaymentDate = addMonthsClamped(firstPaymentDate, installmentCount - 1, true);
+
+  let paidInstallments = 0;
+  for (let index = 0; index < installmentCount; index += 1) {
+    const paymentDate = addMonthsClamped(firstPaymentDate, index, true);
+    if (paymentDate.getTime() <= referenceDate.getTime()) {
+      paidInstallments += 1;
+    }
+  }
+
+  return {
+    firstPaymentDate,
+    finalPaymentDate,
+    paidInstallments,
+    remainingInstallments: Math.max(0, installmentCount - paidInstallments),
+    totalInstallments: installmentCount
+  };
+}
+
+function getFirstPaymentDate(startDate: Date, dueDayOfMonth: number | null) {
+  if (!dueDayOfMonth) {
+    const date = new Date(startDate);
+    date.setHours(23, 59, 59, 999);
+    return date;
+  }
+
+  const candidateThisMonth = createClampedDate(
+    startDate.getFullYear(),
+    startDate.getMonth(),
+    dueDayOfMonth
+  );
+  const paymentDate =
+    candidateThisMonth.getDate() >= startDate.getDate()
+      ? candidateThisMonth
+      : createClampedDate(startDate.getFullYear(), startDate.getMonth() + 1, dueDayOfMonth);
+
+  paymentDate.setHours(23, 59, 59, 999);
+  return paymentDate;
 }
