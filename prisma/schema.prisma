@@ -45,6 +45,11 @@ enum ReminderDeliveryStatus {
   FAILED
 }
 
+enum CreditCardCycleSelection {
+  CURRENT_STATEMENT
+  NEXT_STATEMENT
+}
+
 model User {
   id           String        @id @default(cuid())
   email        String        @unique
@@ -93,11 +98,16 @@ model Transaction {
   category      String
   paymentMethod PaymentMethod
   installmentCount Int?
+  creditCardDebtId String?
+  creditCardCycleSelection CreditCardCycleSelection?
+  statementDate  DateTime?
+  paymentDueDate DateTime?
   transactionAt DateTime
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   userId        String
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creditCardDebt Debt?          @relation(fields: [creditCardDebtId], references: [id], onDelete: SetNull)
 }
 
 model Debt {
@@ -118,6 +128,8 @@ model Debt {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   payments       DebtPayment[]
+  transactions   Transaction[]
+  statementSnapshots CreditCardStatementSnapshot[]
   userId         String
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -179,4 +191,25 @@ model PushSubscription {
   updatedAt DateTime @updatedAt
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CreditCardStatementSnapshot {
+  id                    String   @id @default(cuid())
+  statementDate         DateTime
+  paymentDueDate        DateTime?
+  basePayment           Decimal? @db.Decimal(12, 2)
+  bankMinimumPayment    Decimal? @db.Decimal(12, 2)
+  statementTotal        Decimal  @db.Decimal(12, 2)
+  projectedPayment      Decimal  @db.Decimal(12, 2)
+  paidAmount            Decimal  @db.Decimal(12, 2)
+  outstandingAmount     Decimal  @db.Decimal(12, 2)
+  purchaseCount         Int      @default(0)
+  closedAt              DateTime @default(now())
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  debtId                String
+  debt                  Debt     @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@unique([debtId, statementDate])
+  @@index([debtId, closedAt])
 }

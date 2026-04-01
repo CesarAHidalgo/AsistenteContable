@@ -1,3 +1,7 @@
+import {
+  updateCreditCardPurchaseInstallmentsAction,
+  updateDebtPlanningAction
+} from "@/app/actions";
 import { debtTypeLabel, formatCurrency, formatDate, formatPercent } from "@/lib/utils";
 
 type Debt = {
@@ -18,6 +22,60 @@ type Debt = {
   dueDayOfMonth: number | null;
   statementDayOfMonth: number | null;
   statementDayPurchasesToNextCycle: boolean;
+  cardPurchaseSummary: {
+    totalPurchased: number;
+    previousStatementDate: string | Date | null;
+    referenceStatementDate: string | Date | null;
+    nextStatementDate: string | Date | null;
+    previousPaymentDate: string | Date | null;
+    referencePaymentDate: string | Date | null;
+    currentStatementTotal: number;
+    nextStatementTotal: number;
+    currentStatementInstallmentDue: number;
+    nextStatementInstallmentDue: number;
+    currentCyclePayments: number;
+    currentStatementOutstanding: number;
+    basePayment: number;
+    bankMinimumPayment: number;
+    projectedCurrentPayment: number;
+    nextProjectedPayment: number;
+    latestPurchases: Array<{
+      id: string;
+      description: string;
+      amount: number;
+      installmentCount: number;
+      installmentAmount: number;
+      transactionAt: string | Date;
+      statementDate: string | Date | null;
+      paymentDueDate: string | Date | null;
+      installments: Array<{
+        sequence: number;
+        statementDate: string | Date;
+        paymentDueDate: string | Date;
+        amount: number;
+      }>;
+    }>;
+    purchases: Array<{
+      id: string;
+      description: string;
+      amount: number;
+      installmentCount: number;
+      installmentAmount: number;
+      transactionAt: string | Date;
+      statementDate: string | Date | null;
+      paymentDueDate: string | Date | null;
+      installments: Array<{
+        sequence: number;
+        statementDate: string | Date;
+        paymentDueDate: string | Date;
+        amount: number;
+      }>;
+    }>;
+    alerts: Array<{
+      tone: "warning" | "neutral";
+      message: string;
+    }>;
+  } | null;
   projection: {
     estimatedInterest: number;
     estimatedPrincipal: number;
@@ -52,11 +110,26 @@ export function DebtCard({ debt }: { debt: Debt }) {
   const paid = debt.totalPrincipalPaid;
   const progress = debt.initialAmount === 0 ? 0 : (paid / debt.initialAmount) * 100;
   const lastPayment = debt.payments[0];
+  const mainPaymentLabel =
+    debt.type === "CREDIT_CARD"
+      ? "Pago minimo estimado"
+      : debt.type === "REVOLVING_CREDIT"
+        ? "Pago minimo"
+        : "Cuota programada";
+  const mainPaymentValue =
+    debt.type === "CREDIT_CARD"
+      ? debt.cardPurchaseSummary?.projectedCurrentPayment ??
+        debt.monthlyPayment ??
+        debt.minimumPaymentAmount ??
+        debt.projection.estimatedPayment
+      : debt.type === "REVOLVING_CREDIT"
+        ? debt.minimumPaymentAmount ?? debt.projection.estimatedPayment
+        : debt.monthlyPayment ?? debt.projection.estimatedPayment;
 
   return (
-    <article className="item-card debt-card">
-      <header>
-        <div>
+    <details className="item-card debt-card debt-card-collapsible">
+      <summary className="debt-summary">
+        <div className="debt-summary-main">
           <div className="tag-row">
             <span className="chip neutral">{debtTypeLabel(debt.type)}</span>
             {debt.annualEffectiveRate ? (
@@ -66,21 +139,34 @@ export function DebtCard({ debt }: { debt: Debt }) {
           <h3>{debt.name}</h3>
           <p className="meta">Saldo pendiente: {formatCurrency(debt.currentAmount)}</p>
         </div>
-        <span className="chip warning">{Math.round(progress)}%</span>
-      </header>
+
+        <div className="debt-summary-side">
+          <div className="summary-metric">
+            <span className="detail-label">{mainPaymentLabel}</span>
+            <strong>{formatCurrency(mainPaymentValue)}</strong>
+          </div>
+          {debt.cardPurchaseSummary ? (
+            <div className="summary-metric">
+              <span className="detail-label">Comprado este corte</span>
+              <strong>{formatCurrency(debt.cardPurchaseSummary.currentStatementTotal)}</strong>
+            </div>
+          ) : null}
+          <span className="chip warning">{Math.round(progress)}%</span>
+        </div>
+      </summary>
 
       <div className="progress">
         <span style={{ width: `${Math.min(Math.max(progress, 0), 100)}%` }} />
       </div>
 
-      <div className="detail-grid">
-        <div>
-          <span className="detail-label">Pagado del credito</span>
-          <strong>{formatCurrency(debt.totalPaidAmount)}</strong>
-        </div>
+      <div className="detail-grid debt-key-grid">
         <div>
           <span className="detail-label">Saldo actual</span>
           <strong>{formatCurrency(debt.currentAmount)}</strong>
+        </div>
+        <div>
+          <span className="detail-label">Pagado del credito</span>
+          <strong>{formatCurrency(debt.totalPaidAmount)}</strong>
         </div>
         <div>
           <span className="detail-label">Valor inicial</span>
@@ -90,100 +176,309 @@ export function DebtCard({ debt }: { debt: Debt }) {
           <span className="detail-label">Capital abonado</span>
           <strong>{formatCurrency(debt.totalPrincipalPaid)}</strong>
         </div>
-        <div>
-          <span className="detail-label">Cuota estimada</span>
-          <strong>{formatCurrency(debt.projection.estimatedPayment)}</strong>
-        </div>
-        <div>
-          <span className="detail-label">Interes prox. mes</span>
-          <strong>{formatCurrency(debt.projection.estimatedInterest)}</strong>
-        </div>
-        <div>
-          <span className="detail-label">Capital estimado</span>
-          <strong>{formatCurrency(debt.projection.estimatedPrincipal)}</strong>
-        </div>
-        <div>
-          <span className="detail-label">Pago programado</span>
-          <strong>{formatCurrency(debt.monthlyPayment ?? debt.projection.estimatedPayment)}</strong>
-        </div>
+        {debt.cardPurchaseSummary ? (
+          <>
+            <div>
+              <span className="detail-label">Facturado prox. corte</span>
+              <strong>{formatCurrency(debt.cardPurchaseSummary.currentStatementTotal)}</strong>
+            </div>
+            <div>
+              <span className="detail-label">Facturado corte siguiente</span>
+              <strong>{formatCurrency(debt.cardPurchaseSummary.nextStatementTotal)}</strong>
+            </div>
+            <div>
+              <span className="detail-label">Pagado a este corte</span>
+              <strong>{formatCurrency(debt.cardPurchaseSummary.currentCyclePayments)}</strong>
+            </div>
+            <div>
+              <span className="detail-label">Pendiente del corte</span>
+              <strong>{formatCurrency(debt.cardPurchaseSummary.currentStatementOutstanding)}</strong>
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <span className="detail-label">Interes prox. mes</span>
+              <strong>{formatCurrency(debt.projection.estimatedInterest)}</strong>
+            </div>
+            <div>
+              <span className="detail-label">Capital estimado</span>
+              <strong>{formatCurrency(debt.projection.estimatedPrincipal)}</strong>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="info-lines">
-        {debt.dueDayOfMonth ? <p className="meta">Pago mensual: dia {debt.dueDayOfMonth}</p> : null}
-        {debt.installmentCount ? <p className="meta">Cuotas pactadas: {debt.installmentCount}</p> : null}
-        {debt.projection.installmentPlan ? (
+        {debt.type === "CREDIT_CARD" && debt.cardPurchaseSummary ? (
           <>
             <p className="meta">
-              Cuotas pagadas a la fecha: {debt.projection.installmentPlan.paidInstallments} de{" "}
-              {debt.projection.installmentPlan.totalInstallments}
+              Pago minimo estimado del corte actual: {formatCurrency(debt.cardPurchaseSummary.projectedCurrentPayment)}
             </p>
             <p className="meta">
-              Cuotas restantes: {debt.projection.installmentPlan.remainingInstallments}
+              {formatCurrency(debt.cardPurchaseSummary.basePayment)} base +{" "}
+              {formatCurrency(debt.cardPurchaseSummary.currentStatementTotal)} del corte ={" "}
+              {formatCurrency(debt.cardPurchaseSummary.projectedCurrentPayment)}
             </p>
+            {debt.cardPurchaseSummary.alerts.map((alert, index) => (
+              <p key={`${alert.message}-${index}`} className={`meta ${alert.tone === "warning" ? "negative-text" : ""}`}>
+                {alert.message}
+              </p>
+            ))}
           </>
         ) : null}
-        {debt.statementDayOfMonth ? <p className="meta">Corte estimado: dia {debt.statementDayOfMonth}</p> : null}
+        {debt.monthlyPayment ? (
+          <p className="meta">
+            {debt.type === "CREDIT_CARD" ? "Pago minimo base configurado" : "Cuota mensual configurada"}:{" "}
+            {formatCurrency(debt.monthlyPayment)}
+          </p>
+        ) : null}
+        {debt.minimumPaymentAmount ? (
+          <p className="meta">
+            {debt.type === "CREDIT_CARD" ? "Pago minimo informado por el banco" : "Pago minimo configurado"}:{" "}
+            {formatCurrency(debt.minimumPaymentAmount)}
+          </p>
+        ) : null}
+          {debt.projection.cardCycle ? (
+            <p className="meta">
+              Proximo corte: {formatDate(debt.projection.cardCycle.nextStatementDate)} · Proximo pago:{" "}
+              {formatDate(debt.projection.cardCycle.nextPaymentDate)}
+            </p>
+        ) : null}
         {debt.creditLimit ? (
           <p className="meta">
             Cupo usado: {formatCurrency(debt.currentAmount)} de {formatCurrency(debt.creditLimit)}
             {debt.projection.utilization !== null ? ` (${formatPercent(debt.projection.utilization)})` : ""}
           </p>
         ) : null}
-        {debt.minimumPaymentAmount ? (
-          <p className="meta">Pago minimo configurado: {formatCurrency(debt.minimumPaymentAmount)}</p>
-        ) : null}
-        {debt.projection.cardCycle ? (
-          <>
-            <p className="meta">
-              Proximo corte: {formatDate(debt.projection.cardCycle.nextStatementDate)}. Proximo pago:{" "}
-              {formatDate(debt.projection.cardCycle.nextPaymentDate)}.
-            </p>
+      </div>
+
+      <details className="inline-editor debt-details-toggle">
+        <summary>Ver detalle</summary>
+        <div className="info-lines">
+          {(debt.type === "CREDIT_CARD" || debt.type === "REVOLVING_CREDIT") ? (
+            <form action={updateDebtPlanningAction} className="form-grid compact-form inline-form">
+              <input type="hidden" name="debtId" value={debt.id} />
+              <label>
+                <span>{debt.type === "CREDIT_CARD" ? "Pago minimo base" : "Pago planeado"}</span>
+                <input
+                  name="monthlyPayment"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  defaultValue={debt.monthlyPayment ?? ""}
+                />
+              </label>
+              <label>
+                <span>
+                  {debt.type === "CREDIT_CARD"
+                    ? "Pago minimo informado por el banco"
+                    : "Pago minimo configurado"}
+                </span>
+                <input
+                  name="minimumPaymentAmount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  defaultValue={debt.minimumPaymentAmount ?? ""}
+                />
+              </label>
+              <button type="submit">Guardar planeacion</button>
+            </form>
+          ) : null}
+          {debt.type === "CREDIT_CARD" && debt.cardPurchaseSummary ? (
+            <div className="detail-grid">
+              <div>
+                <span className="detail-label">Minimo base</span>
+                <strong>{formatCurrency(debt.cardPurchaseSummary.basePayment)}</strong>
+              </div>
+              <div>
+                <span className="detail-label">Minimo banco</span>
+                <strong>{formatCurrency(debt.cardPurchaseSummary.bankMinimumPayment)}</strong>
+              </div>
+              <div>
+                <span className="detail-label">Pago proyectado prox. corte</span>
+                <strong>{formatCurrency(debt.cardPurchaseSummary.projectedCurrentPayment)}</strong>
+              </div>
+              <div>
+                <span className="detail-label">Pago proyectado corte siguiente</span>
+                <strong>{formatCurrency(debt.cardPurchaseSummary.nextProjectedPayment)}</strong>
+              </div>
+              <div>
+                <span className="detail-label">Periodo abonado</span>
+                <strong>
+                  {debt.cardPurchaseSummary.previousPaymentDate
+                    ? `${formatDate(debt.cardPurchaseSummary.previousPaymentDate)} -> ${formatDate(debt.cardPurchaseSummary.referencePaymentDate ?? debt.cardPurchaseSummary.previousPaymentDate)}`
+                    : "Sin ventana"}
+                </strong>
+              </div>
+              <div>
+                <span className="detail-label">Facturado pendiente</span>
+                <strong>{formatCurrency(debt.cardPurchaseSummary.currentStatementOutstanding)}</strong>
+              </div>
+            </div>
+          ) : null}
+          {debt.dueDayOfMonth ? <p className="meta">Pago mensual: dia {debt.dueDayOfMonth}</p> : null}
+          {debt.statementDayOfMonth ? <p className="meta">Dia de corte: {debt.statementDayOfMonth}</p> : null}
+          {debt.installmentCount ? <p className="meta">Cuotas pactadas: {debt.installmentCount}</p> : null}
+          {debt.projection.installmentPlan ? (
+            <>
+              <p className="meta">
+                Cuotas pagadas a la fecha: {debt.projection.installmentPlan.paidInstallments} de{" "}
+                {debt.projection.installmentPlan.totalInstallments}
+              </p>
+              <p className="meta">
+                Cuotas restantes: {debt.projection.installmentPlan.remainingInstallments}
+              </p>
+            </>
+          ) : null}
+          {debt.projection.cardCycle ? (
             <p className="meta">
               Compras hechas el dia de corte:{" "}
               {debt.projection.cardCycle.statementDayPurchasesToNextCycle
                 ? "van al siguiente pago"
                 : "entran en este mismo corte"}
             </p>
-          </>
-        ) : null}
-        <p className="meta">
-          Valor inicial {formatCurrency(debt.initialAmount)} {"->"} saldo actual {formatCurrency(debt.currentAmount)}.
-          Has pagado realmente {formatCurrency(debt.totalPaidAmount)} del credito.
-          {debt.totalInterestPaid > 0
-            ? ` De ese valor, ${formatCurrency(debt.totalInterestPaid)} ha sido interes.`
-            : ""}
-        </p>
-        {debt.projection.payoffMonths ? (
+          ) : null}
+          {debt.cardPurchaseSummary?.latestPurchases.length ? (
+            <div className="stack-list">
+              {debt.cardPurchaseSummary.latestPurchases.map((purchase, index) => (
+                <article key={`${purchase.description}-${index}`} className="analysis-list-row">
+                  <div>
+                    <strong>{purchase.description}</strong>
+                    <p className="meta">
+                      Corte {purchase.statementDate ? formatDate(purchase.statementDate) : "sin corte"} · pago{" "}
+                      {purchase.paymentDueDate ? formatDate(purchase.paymentDueDate) : "sin fecha"}
+                    </p>
+                  </div>
+                  <strong>{formatCurrency(purchase.amount)}</strong>
+                </article>
+              ))}
+            </div>
+          ) : null}
+          {debt.type === "CREDIT_CARD" && debt.cardPurchaseSummary?.purchases.length ? (
+            <details className="inline-editor debt-details-toggle">
+              <summary>Gestionar compras de la tarjeta</summary>
+              <div className="info-lines">
+                <p className="meta">
+                  Selecciona una o varias compras y cambia sus cuotas. El minimo proyectado y los
+                  valores de los proximos cortes se recalculan automaticamente.
+                </p>
+                <form
+                  action={updateCreditCardPurchaseInstallmentsAction}
+                  className="form-grid compact-form inline-form"
+                >
+                  <div className="stack-list">
+                    {debt.cardPurchaseSummary.purchases.map((purchase) => (
+                      <label key={purchase.id} className="analysis-list-row checkbox-row">
+                        <input name="transactionIds" type="checkbox" value={purchase.id} />
+                        <div>
+                          <strong>{purchase.description}</strong>
+                          <p className="meta">
+                            Compra {formatCurrency(purchase.amount)} · {purchase.installmentCount} cuota(s) ·{" "}
+                            {formatCurrency(purchase.installmentAmount)} por cuota
+                          </p>
+                          <p className="meta">
+                            Primer corte {purchase.statementDate ? formatDate(purchase.statementDate) : "sin corte"} ·
+                            primer pago {purchase.paymentDueDate ? formatDate(purchase.paymentDueDate) : "sin fecha"}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  <label>
+                    <span>Nuevas cuotas para las compras seleccionadas</span>
+                    <input name="installmentCount" type="number" min="1" step="1" required />
+                  </label>
+                  <button type="submit">Actualizar cuotas</button>
+                </form>
+                <div className="stack-list">
+                  {debt.cardPurchaseSummary.purchases.map((purchase) => (
+                    <details key={`edit-${purchase.id}`} className="inline-editor debt-details-toggle">
+                      <summary>Editar {purchase.description}</summary>
+                      <div className="info-lines">
+                        <p className="meta">
+                          Esta compra reparte {formatCurrency(purchase.installmentAmount)} por cuota durante{" "}
+                          {purchase.installmentCount} corte(s).
+                        </p>
+                        <form
+                          action={updateCreditCardPurchaseInstallmentsAction}
+                          className="form-grid compact-form inline-form"
+                        >
+                          <input type="hidden" name="transactionIds" value={purchase.id} />
+                          <label>
+                            <span>Numero de cuotas</span>
+                            <input
+                              name="installmentCount"
+                              type="number"
+                              min="1"
+                              step="1"
+                              defaultValue={purchase.installmentCount}
+                              required
+                            />
+                          </label>
+                          <button type="submit">Guardar compra</button>
+                        </form>
+                        <div className="stack-list">
+                          {purchase.installments.slice(0, 6).map((installment) => (
+                            <article key={`${purchase.id}-${installment.sequence}`} className="analysis-list-row">
+                              <div>
+                                <strong>Cuota {installment.sequence}</strong>
+                                <p className="meta">
+                                  Corte {formatDate(installment.statementDate)} · pago{" "}
+                                  {formatDate(installment.paymentDueDate)}
+                                </p>
+                              </div>
+                              <strong>{formatCurrency(installment.amount)}</strong>
+                            </article>
+                          ))}
+                        </div>
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              </div>
+            </details>
+          ) : null}
           <p className="meta">
-            {debt.projection.installmentPlan ? "Tiempo restante segun plan: " : "Tiempo estimado para salir: "}
-            {debt.projection.payoffMonths} mes(es)
-            {debt.projection.estimatedPayoffDate
-              ? ` · ultima cuota aprox. ${new Intl.DateTimeFormat("es-CO", {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric"
-                }).format(new Date(debt.projection.estimatedPayoffDate))}`
+            Valor inicial {formatCurrency(debt.initialAmount)} {"->"} saldo actual {formatCurrency(debt.currentAmount)}.
+            Has pagado realmente {formatCurrency(debt.totalPaidAmount)} del credito.
+            {debt.totalInterestPaid > 0
+              ? ` De ese valor, ${formatCurrency(debt.totalInterestPaid)} ha sido interes.`
               : ""}
           </p>
-        ) : (
-          <p className="meta">Con la cuota actual casi todo se iria a interes; conviene revisar el pago.</p>
-        )}
-        {debt.startedAt ? (
-          <p className="meta">
-            Inicio del credito: {new Intl.DateTimeFormat("es-CO", {
-              year: "numeric",
-              month: "short",
-              day: "numeric"
-            }).format(new Date(debt.startedAt))}
-          </p>
-        ) : null}
-        {lastPayment ? (
-          <p className="meta">
-            Ultimo pago: {formatCurrency(lastPayment.amount)}. Capital {formatCurrency(lastPayment.principalAmount)} /
-            interes {formatCurrency(lastPayment.interestAmount)}
-          </p>
-        ) : null}
-      </div>
-    </article>
+          {debt.projection.payoffMonths ? (
+            <p className="meta">
+              {debt.projection.installmentPlan ? "Tiempo restante segun plan: " : "Tiempo estimado para salir: "}
+              {debt.projection.payoffMonths} mes(es)
+              {debt.projection.estimatedPayoffDate
+                ? ` · ultima cuota aprox. ${new Intl.DateTimeFormat("es-CO", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric"
+                  }).format(new Date(debt.projection.estimatedPayoffDate))}`
+                : ""}
+            </p>
+          ) : (
+            <p className="meta">Con la cuota actual casi todo se iria a interes; conviene revisar el pago.</p>
+          )}
+          {debt.startedAt ? (
+            <p className="meta">
+              Inicio del credito: {new Intl.DateTimeFormat("es-CO", {
+                year: "numeric",
+                month: "short",
+                day: "numeric"
+              }).format(new Date(debt.startedAt))}
+            </p>
+          ) : null}
+          {lastPayment ? (
+            <p className="meta">
+              Ultimo pago: {formatCurrency(lastPayment.amount)} el {formatDate(lastPayment.paidAt)}. Capital{" "}
+              {formatCurrency(lastPayment.principalAmount)} / interes {formatCurrency(lastPayment.interestAmount)}
+            </p>
+          ) : null}
+        </div>
+      </details>
+    </details>
   );
 }

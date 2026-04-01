@@ -1,13 +1,17 @@
 import Link from "next/link";
+import { AnalysisPanel } from "@/components/analysis-panel";
 import { LogoutButton } from "@/components/auth-client-controls";
+import { CreditCardStatements } from "@/components/credit-card-statements";
 import { DebtCard } from "@/components/debt-card";
 import { DebtSimulator } from "@/components/debt-simulator";
 import {
   BillingCycleForm,
   DebtForm,
   DebtPaymentForm,
+  DebtManagementPanel,
   ReminderForm,
-  TransactionForm
+  TransactionForm,
+  TransactionManagementPanel
 } from "@/components/forms";
 import { MetricCard } from "@/components/metric-card";
 import { ReminderCard } from "@/components/reminder-card";
@@ -22,7 +26,9 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 const tabs = [
   { id: "overview", label: "Resumen", href: "/?tab=overview" },
   { id: "transactions", label: "Movimientos", href: "/?tab=transactions" },
+  { id: "analysis", label: "Analisis", href: "/?tab=analysis" },
   { id: "debts", label: "Deudas y tarjetas", href: "/?tab=debts" },
+  { id: "cards", label: "Extractos TC", href: "/?tab=cards" },
   { id: "simulation", label: "Simulacion", href: "/?tab=simulation" },
   { id: "reminders", label: "Recordatorios", href: "/?tab=reminders" }
 ] as const;
@@ -38,6 +44,18 @@ export default async function Home({
   const activeTab = tabs.some((tab) => tab.id === resolvedSearchParams.tab)
     ? resolvedSearchParams.tab ?? "overview"
     : "overview";
+  const snowballDebts = data.debts
+    .filter((debt) => debt.currentAmount > 0)
+    .slice()
+    .sort((left, right) => {
+      if (left.currentAmount !== right.currentAmount) {
+        return left.currentAmount - right.currentAmount;
+      }
+
+      const leftPayoffMonths = left.projection.payoffMonths ?? Number.MAX_SAFE_INTEGER;
+      const rightPayoffMonths = right.projection.payoffMonths ?? Number.MAX_SAFE_INTEGER;
+      return leftPayoffMonths - rightPayoffMonths;
+    });
 
   return (
     <main className="page-shell">
@@ -121,10 +139,10 @@ export default async function Home({
 
           <SectionCard kicker="Deudas" title="Prioridades financieras" wide>
             <div className="stack-list two-column-list">
-              {data.debts.length === 0 ? (
+              {snowballDebts.length === 0 ? (
                 <p className="empty-state">Aun no tienes creditos o tarjetas registrados.</p>
               ) : (
-                data.debts.slice(0, 4).map((debt) => <DebtCard key={debt.id} debt={debt} />)
+                snowballDebts.slice(0, 4).map((debt) => <DebtCard key={debt.id} debt={debt} />)
               )}
             </div>
           </SectionCard>
@@ -144,7 +162,17 @@ export default async function Home({
       {activeTab === "transactions" ? (
         <section className="grid-layout dashboard-grid">
           <SectionCard kicker="Registro" title="Nuevo movimiento">
-            <TransactionForm />
+            <TransactionForm
+              creditCardDebts={data.debts
+                .filter((debt) => debt.type === "CREDIT_CARD")
+                .map((debt) => ({
+                  id: debt.id,
+                  name: debt.name,
+                  statementDayOfMonth: debt.statementDayOfMonth,
+                  dueDayOfMonth: debt.dueDayOfMonth,
+                  statementDayPurchasesToNextCycle: debt.statementDayPurchasesToNextCycle
+                }))}
+            />
           </SectionCard>
 
           <SectionCard kicker="Movimientos" title="Historial reciente" wide>
@@ -157,6 +185,27 @@ export default async function Home({
                 ))
               )}
             </div>
+          </SectionCard>
+
+          <SectionCard kicker="Administracion" title="Editar o eliminar movimientos" wide>
+            <TransactionManagementPanel transactions={data.transactions} />
+          </SectionCard>
+        </section>
+      ) : null}
+
+      {activeTab === "analysis" ? (
+        <section className="grid-layout dashboard-grid">
+          <SectionCard kicker="Analisis" title="Radiografia del ciclo actual" wide>
+            <AnalysisPanel analytics={data.analytics} />
+          </SectionCard>
+
+          <SectionCard kicker="Lectura" title="Como usar este modulo">
+            <ul className="plain-list">
+              <li>Categoria dominante te muestra en que se esta concentrando tu gasto del ciclo.</li>
+              <li>Metodo de pago dominante ayuda a detectar cuando dependes demasiado de una tarjeta o canal.</li>
+              <li>El top de gastos te deja ubicar rapido los egresos que mas te movieron el balance.</li>
+              <li>La tendencia de 6 meses sirve para ver si el gasto viene subiendo o bajando en el tiempo.</li>
+            </ul>
           </SectionCard>
         </section>
       ) : null}
@@ -189,6 +238,28 @@ export default async function Home({
                 data.debts.map((debt) => <DebtCard key={debt.id} debt={debt} />)
               )}
             </div>
+          </SectionCard>
+
+          <SectionCard kicker="Administracion" title="Editar o eliminar deudas y pagos" wide>
+            <DebtManagementPanel debts={data.debts} />
+          </SectionCard>
+        </section>
+      ) : null}
+
+      {activeTab === "cards" ? (
+        <section className="grid-layout dashboard-grid single-column">
+          <SectionCard kicker="Tarjetas" title="Extractos y compras por tarjeta" wide>
+            <CreditCardStatements
+              debts={data.debts.filter((debt) => debt.type === "CREDIT_CARD")}
+              creditCardOptions={data.debts
+                .filter((debt) => debt.type === "CREDIT_CARD")
+                .map((debt) => ({
+                  id: debt.id,
+                  name: debt.name,
+                  statementDayOfMonth: debt.statementDayOfMonth,
+                  dueDayOfMonth: debt.dueDayOfMonth
+                }))}
+            />
           </SectionCard>
         </section>
       ) : null}

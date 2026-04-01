@@ -149,12 +149,18 @@ export function ReminderCard({ reminder }: { reminder: Reminder }) {
           </form>
         </details>
 
-        <form action={deleteReminderAction}>
-          <input type="hidden" name="reminderId" value={reminder.id} />
-          <button type="submit" className="ghost-button destructive-button">
-            Eliminar
-          </button>
-        </form>
+        <details className="inline-editor">
+          <summary>Eliminar</summary>
+          <form action={deleteReminderAction} className="form-grid compact-form inline-form">
+            <input type="hidden" name="reminderId" value={reminder.id} />
+            <p className="meta">
+              Esto elimina el recordatorio de forma permanente.
+            </p>
+            <button type="submit" className="ghost-button destructive-button">
+              Confirmar eliminacion
+            </button>
+          </form>
+        </details>
       </div>
     </article>
   );

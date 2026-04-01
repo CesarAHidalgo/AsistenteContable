@@ -1,20 +1,22 @@
 # AsistenteContable
 
-Aplicación web personal para administrar ingresos, gastos, deudas, tarjetas y recordatorios con persistencia real en PostgreSQL, autenticación segura y despliegue con Docker.
+Aplicación web personal para administrar ingresos, gastos, deudas, tarjetas, análisis y recordatorios con persistencia real en PostgreSQL, autenticación segura y despliegue con Docker.
 
-## Qué Resuelve
+## Estado Actual
 
-`AsistenteContable` está pensado para centralizar el control financiero personal en una sola aplicación:
+`AsistenteContable` ya funciona como producto operativo para control financiero personal. Hoy permite:
 
-- registrar ingresos y gastos por categoría
-- guardar el método de pago de cada movimiento
-- controlar créditos, rotativos y tarjetas de crédito
-- estimar intereses, capital y tiempo de salida de una deuda
-- manejar ciclos financieros personalizados
-- crear recordatorios de pago y alarmas
-- exponer una API segura para integraciones como Atajos de iPhone
+- registrar ingresos y gastos por categoría y método de pago
+- manejar ciclos financieros personalizados, distintos al mes calendario
+- controlar deudas de cuota fija, rotativos y tarjetas de crédito
+- registrar pagos y estimar capital, interés y fecha de salida
+- modelar compras con tarjeta en cuotas, por corte y fecha de pago
+- cerrar cortes de tarjeta y guardar snapshots históricos del extracto
+- analizar gasto por categoría, método, tendencia y comparación entre ciclos
+- crear recordatorios de pago y alarmas con soporte para varios canales
+- exponer una API segura para integraciones y automatizaciones
 
-## Stack Definitivo
+## Stack
 
 - `Next.js 15`
 - `React 19`
@@ -28,10 +30,10 @@ Aplicación web personal para administrar ingresos, gastos, deudas, tarjetas y r
 
 ```text
 AsistenteContable/
-├─ app/                         # App Router y endpoints
+├─ app/                         # App Router, pantallas y endpoints
 ├─ components/                  # UI reutilizable
-├─ lib/                         # auth, datos, finanzas y notificaciones
-├─ prisma/                      # esquema de base de datos
+├─ lib/                         # auth, finanzas, datos, notificaciones y utilidades
+├─ prisma/                      # esquema y cliente de base de datos
 ├─ public/                      # activos públicos
 ├─ Dockerfile
 ├─ docker-compose.yml
@@ -39,66 +41,97 @@ AsistenteContable/
 └─ README.md
 ```
 
-## Módulos Principales
+## Módulos Del Producto
 
 ### Autenticación
 
-- login con correo y contraseña
-- registro de usuarios desde UI
+- registro por correo y contraseña
+- login por credenciales
 - login con Google opcional
-- guards para rutas privadas
+- guards de rutas privadas
 - sesión con expiración por inactividad
 
 ### Movimientos
 
 - ingresos y gastos
-- categorías configuradas en UI
+- categorías sugeridas en UI
 - método de pago
-- soporte para compras con tarjeta en cuotas
-- impacto directo en balance del ciclo
+- soporte para compras con tarjeta de crédito
+- edición y eliminación desde interfaz
 
-### Deudas Y Tarjetas
+Regla importante:
 
-- crédito de tasa fija
-- crédito rotativo
-- tarjeta de crédito
-- pagos registrados con separación estimada entre interés y capital
-- progreso real del saldo
-- fecha estimada de última cuota
-- simulación comparando cuota actual vs cuota aumentada
+- las compras con `tarjeta de crédito` no golpean directamente el balance de caja del ciclo
+- el flujo de caja se impacta cuando registras el pago de la tarjeta
+
+### Deudas
+
+Soporta:
+
+- `FIXED_INSTALLMENT`
+- `REVOLVING_CREDIT`
+- `CREDIT_CARD`
+
+Incluye:
+
+- valor inicial y saldo actual
+- `EA`
+- cuota pactada o mínima configurada
+- número de cuotas pactadas
+- fecha de inicio
+- cálculo de progreso real del crédito
+- proyección de salida y simulación con cuota aumentada
+- edición y eliminación desde UI
+
+### Tarjetas De Crédito
+
+El módulo de tarjetas ya tiene comportamiento dedicado:
+
+- asociación de compras a una tarjeta específica
+- definición de corte actual o siguiente al registrar compras
+- cálculo por fecha de corte y fecha de pago
+- edición individual de compras
+- cambio de cuotas en compras
+- cálculo de facturado del corte actual y del próximo corte
+- mínimo proyectado basado en mínimo/configuración y cuotas del corte
+- historial de compras por tarjeta
+- cierre manual de corte para congelar una foto del extracto
+- historial de cortes cerrados
 
 ### Ciclo Financiero
 
-- ciclo configurable con fecha exacta de inicio y fin
-- el balance del periodo usa ese ciclo en lugar del mes calendario
+Cada usuario puede definir su propio ciclo con fecha exacta de inicio y fin. El balance, ingresos y gastos del tablero principal usan ese ciclo en vez del mes calendario.
+
+### Análisis
+
+El módulo de análisis incluye:
+
+- gasto por categoría
+- gasto por método de pago
+- top gastos
+- tendencia de los últimos 6 meses
+- filtros por período, tipo, categoría y método de pago
+- comparación entre ciclo actual y ciclo anterior
 
 ### Recordatorios
 
-Hay dos tipos de recordatorio:
+Hay dos tipos:
 
 - `PAYMENT`
-  Notifica desde `N` días antes de la fecha de pago y deja de avisar cuando se registra como completado.
-
 - `ALARM`
-  Dispara la notificación en una fecha y hora exactas.
 
-Cada recordatorio puede activar uno o varios canales:
+Comportamiento actual:
 
-- correo
-- push
-- WhatsApp
-
-Además, el sistema guarda un historial de entregas por canal para evitar duplicados y dar trazabilidad.
-
-### Integraciones
-
-- API protegida por `Bearer token`
-- endpoint interno para despachar recordatorios por cron
-- endpoint para registrar suscripciones Web Push
+- los recordatorios de pago avisan desde `N` días antes
+- dejan de notificar cuando se marcan como completados
+- las alarmas disparan en una fecha y hora exactas
+- pueden configurarse por correo, push o WhatsApp
+- ya existe historial de entregas por canal
+- se pueden crear, editar, completar y eliminar desde la UI
 
 ## Modelo De Datos
 
-Las entidades principales son:
+Entidades principales:
 
 - `User`
 - `Session`
@@ -106,6 +139,7 @@ Las entidades principales son:
 - `Transaction`
 - `Debt`
 - `DebtPayment`
+- `CreditCardStatementSnapshot`
 - `Reminder`
 - `ReminderDelivery`
 - `PushSubscription`
@@ -144,8 +178,8 @@ WHATSAPP_TO=""
 Notas:
 
 - `.env` no se sube al repositorio
-- `DATABASE_URL` dentro de Docker se resuelve contra el host `db`
-- `CRON_SECRET` protege el endpoint interno de despachos
+- dentro de Docker, `DATABASE_URL` debe apuntar al host `db`
+- `CRON_SECRET` protege el endpoint interno de despacho
 
 ## Puesta En Marcha
 
@@ -155,33 +189,33 @@ Notas:
 docker compose up -d --build
 ```
 
-Esto levanta:
+Servicios:
 
 - app en `http://localhost:3000`
 - PostgreSQL en `localhost:5432`
 
 ### Opción 2: Desarrollo Local
 
-1. Crea `.env` usando `.env.example`
-2. Instala dependencias:
+1. Crea `.env` a partir de `.env.example`
+2. Instala dependencias
 
 ```bash
 npm install
 ```
 
-3. Levanta la base:
+3. Levanta la base
 
 ```bash
 docker compose up -d db
 ```
 
-4. Sincroniza Prisma:
+4. Sincroniza Prisma
 
 ```bash
 npx prisma db push
 ```
 
-5. Ejecuta la app:
+5. Ejecuta la app
 
 ```bash
 npm run dev
@@ -194,22 +228,8 @@ npm run dev
 npm run build
 npm run start
 npm run lint
-npm run db:push
-npm run db:studio
-```
-
-## Autenticación
-
-La aplicación protege las pantallas privadas y la API:
-
-- rutas privadas redirigen a `/login` si no hay sesión
-- la API de integraciones exige `Authorization: Bearer TU_TOKEN`
-- el login con Google se habilita solo si existen credenciales OAuth válidas
-
-Redirect URI local para Google:
-
-```text
-http://localhost:3000/api/auth/callback/google
+npx prisma db push
+npx prisma studio
 ```
 
 ## API Disponible
@@ -248,7 +268,7 @@ x-cron-secret: TU_CRON_SECRET
 
 ### Correo
 
-Ya está operativo con SMTP. Necesitas:
+La estructura ya está lista para SMTP. Debes configurar:
 
 - `SMTP_HOST`
 - `SMTP_PORT`
@@ -259,21 +279,22 @@ Ya está operativo con SMTP. Necesitas:
 
 ### Push
 
-La estructura quedó preparada para:
+La base ya existe para:
 
-- registrar suscripciones del navegador
-- almacenar endpoints por usuario
-- despachar recordatorios por Web Push
+- registrar suscripciones
+- guardar endpoints por usuario
+- despachar recordatorios por canal
 
-Para habilitarlo totalmente faltan:
+Para activarlo completamente faltan:
 
 - claves VAPID reales
-- cliente frontend que solicite permisos y registre la suscripción
-- envío efectivo al endpoint de cada suscripción
+- service worker del lado cliente
+- suscripción desde navegador o PWA
+- envío Web Push efectivo
 
 ### WhatsApp
 
-La integración quedó preparada para Meta WhatsApp Cloud API. Necesitas:
+La estructura está preparada para integrarse con Meta WhatsApp Cloud API. Se requieren:
 
 - `WHATSAPP_ACCESS_TOKEN`
 - `WHATSAPP_PHONE_NUMBER_ID`
@@ -281,23 +302,30 @@ La integración quedó preparada para Meta WhatsApp Cloud API. Necesitas:
 
 ## Validación Técnica
 
-Flujos ya validados en el proyecto:
+Flujos verificados en el proyecto:
 
-- `npm install`
 - `npx prisma db push`
 - `npm run lint`
 - `npm run build`
 - `docker compose up -d --build`
 
+## Seguridad
+
+- rutas privadas protegidas
+- sesión invalidada por inactividad
+- API protegida por `Bearer token`
+- secretos fuera del repositorio
+- autenticación social opcional con Google
+
 ## Estado Del Repositorio
 
-El repositorio ya no conserva el MVP estático anterior. La base activa y soportada del producto es únicamente la aplicación moderna sobre `Next.js + Prisma + PostgreSQL + Docker`.
+Este repositorio ya no conserva el MVP estático inicial. La base soportada del producto es únicamente la aplicación moderna sobre `Next.js + Prisma + PostgreSQL + Docker`.
 
-## Roadmap Sugerido
+## Próximos Pasos Recomendados
 
-- edición y eliminación de transacciones y deudas desde UI
+- notificaciones reales de punta a punta por correo
+- habilitar push web/móvil
+- integrar WhatsApp
+- filtros más avanzados en movimientos y extractos
 - presupuestos por categoría
-- envío real de Web Push
-- automatización periódica del despachador
-- historial avanzado y reportes por periodo
-- despliegue productivo en servidor
+- despliegue productivo

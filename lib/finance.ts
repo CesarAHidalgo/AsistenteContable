@@ -185,13 +185,43 @@ export function getCreditCardCycleInfo(
   }
 
   const nextStatementDate = getNextDayOfMonth(referenceDate, debt.statementDayOfMonth, false);
-  const nextPaymentDate = getNextDayOfMonth(referenceDate, debt.dueDayOfMonth, true);
+  const nextPaymentDate = getPaymentDateForStatement(nextStatementDate, debt.dueDayOfMonth);
 
   return {
     nextStatementDate,
     nextPaymentDate,
     minimumPaymentAmount: debt.minimumPaymentAmount ?? 0,
     statementDayPurchasesToNextCycle: debt.statementDayPurchasesToNextCycle ?? true
+  };
+}
+
+export function getCreditCardPurchaseCycle(
+  debt: Pick<
+    DebtLike,
+    "dueDayOfMonth" | "statementDayOfMonth" | "statementDayPurchasesToNextCycle"
+  >,
+  purchaseDate: Date,
+  selection: "CURRENT_STATEMENT" | "NEXT_STATEMENT" = "CURRENT_STATEMENT"
+) {
+  if (!debt.statementDayOfMonth || !debt.dueDayOfMonth) {
+    return null;
+  }
+
+  const baseStatementDate = getStatementDateForPurchase(
+    purchaseDate,
+    debt.statementDayOfMonth,
+    debt.statementDayPurchasesToNextCycle ?? true
+  );
+  const statementDate =
+    selection === "NEXT_STATEMENT"
+      ? addMonthsClamped(baseStatementDate, 1, true)
+      : baseStatementDate;
+  const paymentDueDate = getPaymentDateForStatement(statementDate, debt.dueDayOfMonth);
+
+  return {
+    selection,
+    statementDate,
+    paymentDueDate
   };
 }
 
@@ -264,26 +294,89 @@ function addMonthsClamped(date: Date, months: number, endOfDay: boolean) {
 }
 
 function getNextDayOfMonth(referenceDate: Date, day: number, endOfDay: boolean) {
+  const normalizedReferenceDate = getCalendarDate(referenceDate);
   const candidateThisMonth = createClampedDate(
-    referenceDate.getFullYear(),
-    referenceDate.getMonth(),
+    normalizedReferenceDate.getFullYear(),
+    normalizedReferenceDate.getMonth(),
     day
   );
-  const isPast = endOfDay
-    ? referenceDate.getTime() > new Date(candidateThisMonth.setHours(23, 59, 59, 999)).getTime()
-    : referenceDate.getTime() > new Date(candidateThisMonth.setHours(0, 0, 0, 0)).getTime();
+  const normalizedReferenceCompare = new Date(normalizedReferenceDate);
+  normalizedReferenceCompare.setHours(endOfDay ? 23 : 12, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
+  const candidateCompare = new Date(candidateThisMonth);
+  candidateCompare.setHours(endOfDay ? 23 : 12, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
+  const isPast = normalizedReferenceCompare.getTime() > candidateCompare.getTime();
 
   const result = isPast
-    ? createClampedDate(referenceDate.getFullYear(), referenceDate.getMonth() + 1, day)
-    : createClampedDate(referenceDate.getFullYear(), referenceDate.getMonth(), day);
+    ? createClampedDate(normalizedReferenceDate.getFullYear(), normalizedReferenceDate.getMonth() + 1, day)
+    : createClampedDate(normalizedReferenceDate.getFullYear(), normalizedReferenceDate.getMonth(), day);
 
   if (endOfDay) {
     result.setHours(23, 59, 59, 999);
   } else {
-    result.setHours(0, 0, 0, 0);
+    result.setHours(12, 0, 0, 0);
   }
 
   return result;
+}
+
+function getStatementDateForPurchase(
+  purchaseDate: Date,
+  statementDayOfMonth: number,
+  statementDayPurchasesToNextCycle: boolean
+) {
+  const calendarPurchaseDate = getCalendarDate(purchaseDate);
+  const statementThisMonth = createClampedDate(
+    calendarPurchaseDate.getFullYear(),
+    calendarPurchaseDate.getMonth(),
+    statementDayOfMonth
+  );
+  statementThisMonth.setHours(23, 59, 59, 999);
+
+  const purchaseDay = new Date(calendarPurchaseDate);
+  purchaseDay.setHours(12, 0, 0, 0);
+
+  const sameDay =
+    purchaseDay.getDate() === statementThisMonth.getDate() &&
+    purchaseDay.getMonth() === statementThisMonth.getMonth() &&
+    purchaseDay.getFullYear() === statementThisMonth.getFullYear();
+  const beforeStatement =
+    purchaseDay.getFullYear() < statementThisMonth.getFullYear() ||
+    (purchaseDay.getFullYear() === statementThisMonth.getFullYear() &&
+      purchaseDay.getMonth() < statementThisMonth.getMonth()) ||
+    (purchaseDay.getFullYear() === statementThisMonth.getFullYear() &&
+      purchaseDay.getMonth() === statementThisMonth.getMonth() &&
+      purchaseDay.getDate() < statementThisMonth.getDate());
+
+  if (sameDay) {
+    return statementDayPurchasesToNextCycle
+      ? addMonthsClamped(statementThisMonth, 1, true)
+      : statementThisMonth;
+  }
+
+  if (beforeStatement) {
+    return statementThisMonth;
+  }
+
+  return addMonthsClamped(statementThisMonth, 1, true);
+}
+
+function getCalendarDate(date: Date) {
+  return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 12, 0, 0, 0);
+}
+
+function getPaymentDateForStatement(statementDate: Date, dueDayOfMonth: number) {
+  const sameMonthCandidate = createClampedDate(
+    statementDate.getFullYear(),
+    statementDate.getMonth(),
+    dueDayOfMonth
+  );
+  sameMonthCandidate.setHours(23, 59, 59, 999);
+
+  if (sameMonthCandidate.getTime() > statementDate.getTime()) {
+    return sameMonthCandidate;
+  }
+
+  return addMonthsClamped(sameMonthCandidate, 1, true);
 }
 
 function getInstallmentPlanInfo(

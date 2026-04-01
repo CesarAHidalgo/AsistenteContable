@@ -502,6 +502,47 @@ button {
   min-width: 0;
 }
 
+.debt-card-collapsible {
+  padding: 0;
+  overflow: hidden;
+}
+
+.debt-summary {
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  cursor: pointer;
+}
+
+.debt-summary::-webkit-details-marker {
+  display: none;
+}
+
+.debt-summary-main,
+.debt-summary-side {
+  display: grid;
+  gap: 8px;
+}
+
+.debt-summary-side {
+  min-width: 180px;
+  justify-items: end;
+}
+
+.summary-metric {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+}
+
+.debt-key-grid,
+.debt-card .info-lines,
+.debt-details-toggle {
+  margin: 0 16px 16px;
+}
+
 .comparison-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -531,6 +572,160 @@ button {
   padding: 16px 18px;
   background: rgba(15, 118, 110, 0.12);
   color: var(--primary-deep);
+}
+
+.analysis-stack {
+  gap: 18px;
+}
+
+.analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.analysis-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.analysis-kpi-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.analysis-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.comparison-card {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.76);
+  display: grid;
+  gap: 6px;
+}
+
+.comparison-card p,
+.comparison-card strong {
+  margin: 0;
+}
+
+.analysis-card {
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.analysis-card h3 {
+  margin: 0 0 14px;
+}
+
+.analysis-breakdown-row {
+  display: grid;
+  gap: 8px;
+}
+
+.analysis-breakdown-head,
+.analysis-list-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.statement-stack {
+  gap: 18px;
+}
+
+.statement-card {
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.74);
+  display: grid;
+  gap: 16px;
+}
+
+.statement-card-header,
+.statement-purchase-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.statement-metrics,
+.statement-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.statement-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 320px;
+}
+
+.statement-close-form {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.statement-close-form button {
+  justify-self: start;
+}
+
+.statement-history-card {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.statement-metric {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.statement-purchase-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.statement-purchase-summary {
+  list-style: none;
+  padding: 16px;
+  cursor: pointer;
+}
+
+.statement-purchase-summary::-webkit-details-marker {
+  display: none;
+}
+
+.statement-purchase-body {
+  padding: 0 16px 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.positive-text {
+  color: var(--success);
+}
+
+.negative-text {
+  color: var(--danger);
 }
 
 .error-banner,
@@ -631,8 +826,29 @@ button {
   .hero-summary-grid,
   .two-column-list,
   .detail-grid,
-  .comparison-grid {
+  .comparison-grid,
+  .analysis-grid,
+  .analysis-filters,
+  .analysis-kpi-grid,
+  .analysis-comparison-grid,
+  .statement-grid,
+  .statement-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .debt-summary {
+    flex-direction: column;
+  }
+
+  .statement-card-header,
+  .statement-purchase-summary {
+    flex-direction: column;
+  }
+
+  .debt-summary-side,
+  .summary-metric {
+    justify-items: start;
+    text-align: left;
   }
 
   .panel-wide {

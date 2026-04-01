@@ -1,3 +1,5 @@
+import { deleteTransactionAction, updateTransactionAction } from "@/app/actions";
+import { formatDateInput, transactionTypeOptions } from "@/lib/serializers";
 import { formatCurrency, formatDate, paymentMethodLabel } from "@/lib/utils";
 
 type Transaction = {
@@ -8,10 +10,16 @@ type Transaction = {
   category: string;
   paymentMethod: "BANK_TRANSFER" | "CREDIT_CARD" | "DEBIT_CARD" | "CASH" | "NEQUI" | "DAVIPLATA" | "OTHER";
   installmentCount: number | null;
+  creditCardDebtId?: string | null;
+  creditCardDebt?: { name: string } | null;
+  statementDate?: string | Date | null;
+  paymentDueDate?: string | Date | null;
   transactionAt: string | Date;
 };
 
 export function TransactionCard({ transaction }: { transaction: Transaction }) {
+  const isCreditCard = transaction.paymentMethod === "CREDIT_CARD";
+
   return (
     <article className="item-card">
       <header>
@@ -20,15 +28,95 @@ export function TransactionCard({ transaction }: { transaction: Transaction }) {
           <p className="meta">
             {transaction.category} · {paymentMethodLabel(transaction.paymentMethod)} ·{" "}
             {formatDate(transaction.transactionAt)}
-            {transaction.paymentMethod === "CREDIT_CARD" && transaction.installmentCount
-              ? ` · ${transaction.installmentCount} cuota(s)`
-              : ""}
+            {transaction.installmentCount ? ` · ${transaction.installmentCount} cuota(s)` : ""}
           </p>
+          {isCreditCard && transaction.creditCardDebt ? (
+            <p className="meta">
+              {transaction.creditCardDebt.name}
+              {transaction.statementDate ? ` · corte ${formatDate(transaction.statementDate)}` : ""}
+              {transaction.paymentDueDate ? ` · pago ${formatDate(transaction.paymentDueDate)}` : ""}
+            </p>
+          ) : null}
         </div>
         <span className={`chip ${transaction.type === "INCOME" ? "income" : "expense"}`}>
           {formatCurrency(transaction.amount)}
         </span>
       </header>
+
+      <div className="reminder-actions">
+        <details className="inline-editor">
+          <summary>Editar</summary>
+          <form action={updateTransactionAction} className="form-grid compact-form inline-form">
+            <input type="hidden" name="transactionId" value={transaction.id} />
+            <input type="hidden" name="paymentMethod" value={transaction.paymentMethod} />
+            <input type="hidden" name="creditCardDebtName" value={transaction.creditCardDebt?.name ?? ""} />
+
+            <label>
+              <span>Descripcion</span>
+              <input name="description" defaultValue={transaction.description} required />
+            </label>
+
+            <label>
+              <span>Valor</span>
+              <input name="amount" type="number" min="0" step="0.01" defaultValue={transaction.amount} required />
+            </label>
+
+            <label>
+              <span>Tipo</span>
+              <select name="type" defaultValue={transaction.type}>
+                {transactionTypeOptions().map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Categoria</span>
+              <input name="category" defaultValue={transaction.category} required />
+            </label>
+
+            <label>
+              <span>Fecha</span>
+              <input
+                name="transactionAt"
+                type="date"
+                defaultValue={formatDateInput(new Date(transaction.transactionAt))}
+                required
+              />
+            </label>
+
+            {isCreditCard ? (
+              <label>
+                <span>Numero de cuotas</span>
+                <input
+                  name="installmentCount"
+                  type="number"
+                  min="1"
+                  step="1"
+                  defaultValue={transaction.installmentCount ?? ""}
+                />
+              </label>
+            ) : null}
+
+            <button type="submit">Guardar movimiento</button>
+          </form>
+        </details>
+
+        <details className="inline-editor">
+          <summary>Eliminar</summary>
+          <form action={deleteTransactionAction} className="form-grid compact-form inline-form">
+            <input type="hidden" name="transactionId" value={transaction.id} />
+            <p className="meta">
+              Esto elimina el movimiento y revierte el impacto si estaba asociado a una tarjeta de credito.
+            </p>
+            <button type="submit" className="ghost-button destructive-button">
+              Confirmar eliminacion
+            </button>
+          </form>
+        </details>
+      </div>
     </article>
   );
 }

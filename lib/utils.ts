@@ -1,3 +1,5 @@
+const APP_TIME_ZONE = "America/Bogota";
+
 export function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-CO", {
     style: "currency",
@@ -8,9 +10,10 @@ export function formatCurrency(value: number) {
 
 export function formatDate(value: string | Date) {
   const normalized =
-    value instanceof Date ? value : value.includes("T") ? value : `${value}T00:00:00`;
+    value instanceof Date ? value : value.includes("T") ? value : `${value}T12:00:00`;
 
   return new Intl.DateTimeFormat("es-CO", {
+    timeZone: APP_TIME_ZONE,
     year: "numeric",
     month: "short",
     day: "numeric"
@@ -21,6 +24,7 @@ export function formatDateTime(value: string | Date) {
   const normalized = value instanceof Date ? value : new Date(value);
 
   return new Intl.DateTimeFormat("es-CO", {
+    timeZone: APP_TIME_ZONE,
     year: "numeric",
     month: "short",
     day: "numeric",
