@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.5.0",
+    "@sentry/nextjs": "^10.47.0",
     "next": "^15.2.4",
     "next-auth": "^4.24.13",
     "nodemailer": "^7.0.7",
@@ -19,8 +20,8 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@types/nodemailer": "^7.0.1",
     "@types/node": "^22.13.17",
+    "@types/nodemailer": "^7.0.1",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
     "eslint": "^9.22.0",
