@@ -3,6 +3,11 @@ import { LogoutButton } from "@/components/auth-client-controls";
 import { ApiTokenForm, RevokeTokenForm } from "@/components/forms";
 import { IdleSessionManager } from "@/components/idle-session-manager";
 import { SectionCard } from "@/components/section-card";
+import {
+  dispatchRemindersNowAction,
+  sendTestEmailAction,
+  verifySmtpAction
+} from "@/app/actions";
 import { requireUser } from "@/lib/auth";
 import { getDashboardData } from "@/lib/data";
 import { formatDate } from "@/lib/utils";
@@ -10,7 +15,7 @@ import { formatDate } from "@/lib/utils";
 export default async function IntegracionesPage({
   searchParams
 }: {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string; message?: string; status?: string }>;
 }) {
   const user = await requireUser();
   const data = await getDashboardData(user.id);
@@ -42,10 +47,47 @@ export default async function IntegracionesPage({
               <code>{params.token}</code>
             </div>
           ) : null}
+          {params.message ? (
+            <div className={params.status === "warning" ? "error-banner" : "token-banner"}>{params.message}</div>
+          ) : null}
         </SectionCard>
       </section>
 
       <section className="grid-layout single-column">
+        <SectionCard kicker="Correo" title="Estado del canal SMTP">
+          <div className="detail-grid">
+            <div>
+              <span className="detail-label">Configuración SMTP</span>
+              <strong>
+                {data.integrations.channelStatus.emailConfigured ? "Lista" : "Pendiente"}
+              </strong>
+            </div>
+            <div>
+              <span className="detail-label">Correo de prueba</span>
+              <strong>{user.email}</strong>
+            </div>
+          </div>
+          <div className="hero-actions">
+            <form action={verifySmtpAction}>
+              <button type="submit" className="ghost-button">
+                Verificar conexión SMTP
+              </button>
+            </form>
+            <form action={sendTestEmailAction}>
+              <button type="submit">Enviar correo de prueba</button>
+            </form>
+          </div>
+        </SectionCard>
+
+        <SectionCard kicker="Recordatorios" title="Ejecutar despacho ahora">
+          <p className="empty-state">
+            Este botón te permite probar el flujo real de recordatorios por correo sin esperar al cron.
+          </p>
+          <form action={dispatchRemindersNowAction}>
+            <button type="submit">Despachar recordatorios ahora</button>
+          </form>
+        </SectionCard>
+
         <SectionCard kicker="Seguridad" title="Tokens activos">
           <div className="stack-list">
             {data.apiTokens.length === 0 ? (
@@ -98,10 +140,49 @@ x-cron-secret: TU_CRON_SECRET`}
         </SectionCard>
 
         <SectionCard kicker="Canales" title="Configuración de notificaciones">
-          <p className="empty-state">
-            Correo queda operativo con SMTP. Push y WhatsApp quedan preparados para habilitarlos cuando
-            registres suscripciones web push o credenciales del proveedor.
-          </p>
+          <div className="detail-grid">
+            <div>
+              <span className="detail-label">Correo</span>
+              <strong>{data.integrations.channelStatus.emailConfigured ? "Operativo" : "No configurado"}</strong>
+            </div>
+            <div>
+              <span className="detail-label">Push</span>
+              <strong>
+                {data.integrations.channelStatus.pushSubscriptionCount} suscripción(es)
+              </strong>
+            </div>
+            <div>
+              <span className="detail-label">Web Push</span>
+              <strong>{data.integrations.channelStatus.pushConfigured ? "Preparado" : "Sin VAPID"}</strong>
+            </div>
+            <div>
+              <span className="detail-label">WhatsApp</span>
+              <strong>{data.integrations.channelStatus.whatsappConfigured ? "Preparado" : "No configurado"}</strong>
+            </div>
+          </div>
+        </SectionCard>
+
+        <SectionCard kicker="Historial" title="Últimas entregas de recordatorios">
+          <div className="stack-list">
+            {data.integrations.recentReminderDeliveries.length === 0 ? (
+              <p className="empty-state">Aún no hay entregas de recordatorios registradas.</p>
+            ) : (
+              data.integrations.recentReminderDeliveries.map((delivery) => (
+                <article key={delivery.id} className="item-card">
+                  <header>
+                    <div>
+                      <h3>{delivery.reminder.title}</h3>
+                      <p className="meta">
+                        {delivery.channel} · {delivery.status} · {formatDate(delivery.createdAt.toISOString())}
+                      </p>
+                      {delivery.message ? <p className="meta">{delivery.message}</p> : null}
+                      {delivery.errorMessage ? <p className="meta negative-text">{delivery.errorMessage}</p> : null}
+                    </div>
+                  </header>
+                </article>
+              ))
+            )}
+          </div>
         </SectionCard>
       </section>
     </main>

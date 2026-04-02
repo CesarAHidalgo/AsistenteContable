@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getNotificationChannelStatus } from "@/lib/reminder-notifications";
 import {
   calculateDebtProjection,
   getBudgetCycleRange,
@@ -36,7 +37,17 @@ export async function getDashboardData(userId: string) {
         )
       : getBudgetCycleRange(previousCycleReferenceDate, user.billingCycleStartDay, user.billingCycleEndDay);
 
-  const [transactions, cycleTransactions, previousCycleTransactions, allTransactions, debts, reminders, apiTokens] =
+  const [
+    transactions,
+    cycleTransactions,
+    previousCycleTransactions,
+    allTransactions,
+    debts,
+    reminders,
+    apiTokens,
+    recentReminderDeliveries,
+    pushSubscriptionCount
+  ] =
     await Promise.all([
     prisma.transaction.findMany({
       where: { userId },
@@ -114,6 +125,27 @@ export async function getDashboardData(userId: string) {
     prisma.apiToken.findMany({
       where: { userId, revokedAt: null },
       orderBy: { createdAt: "desc" }
+    }),
+    prisma.reminderDelivery.findMany({
+      where: {
+        reminder: {
+          userId
+        }
+      },
+      include: {
+        reminder: {
+          select: {
+            id: true,
+            title: true,
+            type: true
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10
+    }),
+    prisma.pushSubscription.count({
+      where: { userId }
     })
   ]);
 
@@ -305,7 +337,14 @@ export async function getDashboardData(userId: string) {
       ...item,
       amount: decimalToNumber(item.amount)
     })),
-    apiTokens
+    apiTokens,
+    integrations: {
+      channelStatus: getNotificationChannelStatus(pushSubscriptionCount),
+      recentReminderDeliveries: recentReminderDeliveries.map((delivery) => ({
+        ...delivery,
+        reminder: delivery.reminder
+      }))
+    }
   };
 }
 
