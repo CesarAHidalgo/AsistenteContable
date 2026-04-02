@@ -6,6 +6,7 @@ import { DebtType, PaymentMethod, TransactionType } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
 import { generateOpaqueToken, hashPassword, hashToken } from "@/lib/crypto";
 import { getCreditCardPurchaseCycle, splitDebtPayment } from "@/lib/finance";
+import { logInfo } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 
 function parseAmount(value: FormDataEntryValue | null) {
@@ -126,6 +127,14 @@ export async function createTransactionAction(formData: FormData) {
       })
     ]);
 
+    logInfo("action.transaction.created", {
+      userId: user.id,
+      paymentMethod,
+      transactionType,
+      amount,
+      creditCardDebtId
+    });
+
     revalidatePath("/");
     return;
   }
@@ -143,6 +152,13 @@ export async function createTransactionAction(formData: FormData) {
       installmentCount: installmentCount > 0 ? installmentCount : null,
       transactionAt
     }
+  });
+
+  logInfo("action.transaction.created", {
+    userId: user.id,
+    paymentMethod,
+    transactionType,
+    amount
   });
 
   revalidatePath("/");
@@ -288,6 +304,13 @@ export async function createDebtAction(formData: FormData) {
       statementDayOfMonth: statementDay || null,
       statementDayPurchasesToNextCycle
     }
+  });
+
+  logInfo("action.debt.created", {
+    userId: user.id,
+    type: requestedType,
+    currentAmount,
+    initialAmount
   });
 
   revalidatePath("/");
@@ -489,6 +512,14 @@ export async function closeCreditCardStatementAction(formData: FormData) {
     }
   });
 
+  logInfo("action.credit_card_statement.closed", {
+    userId: user.id,
+    debtId: debt.id,
+    statementDate: statementDate.toISOString(),
+    purchaseCount: snapshotPurchaseCount,
+    projectedPayment: snapshotProjectedPayment
+  });
+
   revalidatePath("/");
 }
 
@@ -658,6 +689,15 @@ export async function createReminderAction(formData: FormData) {
     }
   });
 
+  logInfo("action.reminder.created", {
+    userId: user.id,
+    type,
+    dueDate: dueDate.toISOString(),
+    notifyEmail: checked(formData.get("notifyEmail")),
+    notifyPush: checked(formData.get("notifyPush")),
+    notifyWhatsApp: checked(formData.get("notifyWhatsApp"))
+  });
+
   revalidatePath("/");
 }
 
@@ -782,6 +822,14 @@ export async function createDebtPaymentAction(formData: FormData) {
       }
     })
   ]);
+
+  logInfo("action.debt_payment.created", {
+    userId: user.id,
+    debtId,
+    debtType: debt.type,
+    amount,
+    paidAt: paidAt.toISOString()
+  });
 
   revalidatePath("/");
 }

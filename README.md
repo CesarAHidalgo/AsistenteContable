@@ -15,6 +15,7 @@ Aplicación web personal para administrar ingresos, gastos, deudas, tarjetas, an
 - analizar gasto por categoría, método, tendencia y comparación entre ciclos
 - crear recordatorios de pago y alarmas con soporte para varios canales
 - exponer una API segura para integraciones y automatizaciones
+- monitorear errores y salud del servicio con observabilidad base
 
 ## Stack
 
@@ -24,6 +25,7 @@ Aplicación web personal para administrar ingresos, gastos, deudas, tarjetas, an
 - `PostgreSQL 16`
 - `Prisma`
 - `NextAuth`
+- `Sentry`
 - `Docker` y `Docker Compose`
 
 ## Arquitectura
@@ -157,6 +159,11 @@ NEXTAUTH_URL="http://localhost:3000"
 GOOGLE_CLIENT_ID=""
 GOOGLE_CLIENT_SECRET=""
 
+SENTRY_DSN=""
+SENTRY_TRACES_SAMPLE_RATE="0"
+NEXT_PUBLIC_SENTRY_DSN=""
+NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE="0"
+
 CRON_SECRET=""
 
 SMTP_HOST=""
@@ -257,6 +264,8 @@ npx prisma studio
 ### Despachador Interno
 
 - `POST /api/internal/reminders/dispatch`
+- `GET /api/health`
+- `GET /api/ready`
 
 Header requerido:
 
@@ -300,6 +309,26 @@ La estructura está preparada para integrarse con Meta WhatsApp Cloud API. Se re
 - `WHATSAPP_PHONE_NUMBER_ID`
 - `WHATSAPP_TO`
 
+## Observabilidad
+
+La aplicación ahora incluye una base de observabilidad operativa:
+
+- integración con `Sentry` para errores de frontend, backend y render
+- `global error boundary` para capturar fallos inesperados de UI
+- logging estructurado en JSON para rutas y acciones clave
+- endpoint `GET /api/health` para validar que la app está viva
+- endpoint `GET /api/ready` para validar conectividad con PostgreSQL
+- trazabilidad de recordatorios enviados, omitidos o fallidos en base de datos
+
+### Variables De Sentry
+
+- `SENTRY_DSN`
+- `SENTRY_TRACES_SAMPLE_RATE`
+- `NEXT_PUBLIC_SENTRY_DSN`
+- `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE`
+
+Si no configuras un `DSN`, Sentry queda desactivado sin romper la aplicación.
+
 ## Validación Técnica
 
 Flujos verificados en el proyecto:
@@ -308,6 +337,8 @@ Flujos verificados en el proyecto:
 - `npm run lint`
 - `npm run build`
 - `docker compose up -d --build`
+- `GET /api/health`
+- `GET /api/ready`
 
 ## Seguridad
 
