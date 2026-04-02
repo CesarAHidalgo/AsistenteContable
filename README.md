@@ -172,6 +172,9 @@ SMTP_SECURE="false"
 SMTP_USER=""
 SMTP_PASS=""
 SMTP_FROM=""
+RESEND_API_KEY=""
+EMAIL_FROM=""
+RESEND_FROM=""
 
 WEB_PUSH_PUBLIC_KEY=""
 WEB_PUSH_PRIVATE_KEY=""
@@ -277,7 +280,22 @@ x-cron-secret: TU_CRON_SECRET
 
 ### Correo
 
-La estructura ya está lista para SMTP. Debes configurar:
+El canal de correo ahora soporta dos caminos:
+
+- `Resend API`, recomendado para Railway y despliegues donde SMTP saliente pueda estar restringido
+- `SMTP`, como respaldo para entornos donde ese canal sí esté disponible
+
+Configuración recomendada con Resend:
+
+- `RESEND_API_KEY`
+- `EMAIL_FROM`
+
+Compatibilidad opcional:
+
+- `RESEND_FROM`
+- `SMTP_FROM`
+
+Configuración SMTP alternativa:
 
 - `SMTP_HOST`
 - `SMTP_PORT`
@@ -285,6 +303,12 @@ La estructura ya está lista para SMTP. Debes configurar:
 - `SMTP_USER`
 - `SMTP_PASS`
 - `SMTP_FROM`
+
+Notas:
+
+- si `RESEND_API_KEY` y un remitente están configurados, la aplicación prioriza `Resend API`
+- en `Integraciones` puedes verificar la conexión del canal, enviar un correo de prueba y despachar recordatorios manualmente
+- los botones de esas acciones muestran estado de carga para evitar dobles clics o confusión mientras el servidor procesa la petición
 
 ### Push
 
