@@ -26,10 +26,10 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 const tabs = [
   { id: "overview", label: "Resumen", href: "/?tab=overview" },
   { id: "transactions", label: "Movimientos", href: "/?tab=transactions" },
-  { id: "analysis", label: "Analisis", href: "/?tab=analysis" },
+  { id: "analysis", label: "Análisis", href: "/?tab=analysis" },
   { id: "debts", label: "Deudas y tarjetas", href: "/?tab=debts" },
   { id: "cards", label: "Extractos TC", href: "/?tab=cards" },
-  { id: "simulation", label: "Simulacion", href: "/?tab=simulation" },
+  { id: "simulation", label: "Simulación", href: "/?tab=simulation" },
   { id: "reminders", label: "Recordatorios", href: "/?tab=reminders" }
 ] as const;
 
@@ -65,8 +65,8 @@ export default async function Home({
           <p className="eyebrow">AsistenteContable</p>
           <h1>Controla ingresos, gastos, cuotas y tarjetas sin perderte en una sola pantalla.</h1>
           <p>
-            Todo se guarda en PostgreSQL y ahora el seguimiento de deudas estima interes, capital y pago
-            sugerido segun el tipo de producto.
+            Todo se guarda en PostgreSQL y ahora el seguimiento de deudas estima interés, capital y pago
+            sugerido según el tipo de producto.
           </p>
           <div className="hero-actions">
             <Link href="/integraciones" className="inline-link">
@@ -86,7 +86,7 @@ export default async function Home({
             ) : null}
             {data.alerts.dueSoonCount > 0 ? (
               <div className="alert-chip success">
-                {data.alerts.dueSoonCount} recordatorio(s) vencen en los proximos 5 dias.
+                {data.alerts.dueSoonCount} recordatorio(s) vencen en los próximos 5 días.
               </div>
             ) : null}
           </div>
@@ -128,7 +128,7 @@ export default async function Home({
           <SectionCard kicker="Movimientos" title="Ultimos registros">
             <div className="stack-list">
               {data.transactions.length === 0 ? (
-                <p className="empty-state">Aun no tienes movimientos guardados.</p>
+                <p className="empty-state">Aún no tienes movimientos guardados.</p>
               ) : (
                 data.transactions.slice(0, 5).map((transaction) => (
                   <TransactionCard key={transaction.id} transaction={transaction} />
@@ -140,7 +140,7 @@ export default async function Home({
           <SectionCard kicker="Deudas" title="Prioridades financieras" wide>
             <div className="stack-list two-column-list">
               {snowballDebts.length === 0 ? (
-                <p className="empty-state">Aun no tienes creditos o tarjetas registrados.</p>
+                <p className="empty-state">Aún no tienes créditos o tarjetas registradas.</p>
               ) : (
                 snowballDebts.slice(0, 4).map((debt) => <DebtCard key={debt.id} debt={debt} />)
               )}
@@ -195,15 +195,15 @@ export default async function Home({
 
       {activeTab === "analysis" ? (
         <section className="grid-layout dashboard-grid">
-          <SectionCard kicker="Analisis" title="Radiografia del ciclo actual" wide>
+          <SectionCard kicker="Análisis" title="Radiografía del ciclo actual" wide>
             <AnalysisPanel analytics={data.analytics} />
           </SectionCard>
 
-          <SectionCard kicker="Lectura" title="Como usar este modulo">
+          <SectionCard kicker="Lectura" title="Cómo usar este módulo">
             <ul className="plain-list">
-              <li>Categoria dominante te muestra en que se esta concentrando tu gasto del ciclo.</li>
-              <li>Metodo de pago dominante ayuda a detectar cuando dependes demasiado de una tarjeta o canal.</li>
-              <li>El top de gastos te deja ubicar rapido los egresos que mas te movieron el balance.</li>
+              <li>Categoría dominante te muestra en qué se está concentrando tu gasto del ciclo.</li>
+              <li>Método de pago dominante ayuda a detectar cuando dependes demasiado de una tarjeta o canal.</li>
+              <li>El top de gastos te deja ubicar rápido los egresos que más te movieron el balance.</li>
               <li>La tendencia de 6 meses sirve para ver si el gasto viene subiendo o bajando en el tiempo.</li>
             </ul>
           </SectionCard>
@@ -212,7 +212,7 @@ export default async function Home({
 
       {activeTab === "debts" ? (
         <section className="grid-layout dashboard-grid">
-          <SectionCard kicker="Deudas" title="Nuevo credito o tarjeta">
+          <SectionCard kicker="Deudas" title="Nuevo crédito o tarjeta">
             <DebtForm />
           </SectionCard>
 
@@ -220,27 +220,27 @@ export default async function Home({
             <DebtPaymentForm debts={data.debts} />
           </SectionCard>
 
-          <SectionCard kicker="Lectura" title="Como leer el estimado" wide>
+          <SectionCard kicker="Lectura" title="Cómo leer el estimado" wide>
             <ul className="plain-list">
-              <li>La cuota estimada usa tu tasa EA para aproximar interes mensual.</li>
-              <li>En credito fijo compara la cuota que configuraste contra el interes estimado.</li>
-              <li>En rotativos y tarjetas se muestra el valor minimo configurado o el pago estimado segun el caso.</li>
-              <li>El capital del pago reduce la deuda; el interes te ayuda a ver si vale subir la cuota.</li>
-              <li>La fecha estimada de ultima cuota toma como base la fecha de inicio del credito.</li>
+              <li>La cuota estimada usa tu tasa EA para aproximar interés mensual.</li>
+              <li>En crédito fijo compara la cuota que configuraste contra el interés estimado.</li>
+              <li>En rotativos y tarjetas se muestra el valor mínimo configurado o el pago estimado según el caso.</li>
+              <li>El capital del pago reduce la deuda; el interés te ayuda a ver si vale subir la cuota.</li>
+              <li>La fecha estimada de última cuota toma como base la fecha de inicio del crédito.</li>
             </ul>
           </SectionCard>
 
           <SectionCard kicker="Seguimiento" title="Deudas activas" wide>
             <div className="stack-list two-column-list">
               {data.debts.length === 0 ? (
-                <p className="empty-state">Todavia no has agregado deudas.</p>
+                <p className="empty-state">Todavía no has agregado deudas.</p>
               ) : (
                 data.debts.map((debt) => <DebtCard key={debt.id} debt={debt} />)
               )}
             </div>
           </SectionCard>
 
-          <SectionCard kicker="Administracion" title="Editar o eliminar deudas y pagos" wide>
+          <SectionCard kicker="Administración" title="Editar o eliminar deudas y pagos" wide>
             <DebtManagementPanel debts={data.debts} />
           </SectionCard>
         </section>
@@ -266,11 +266,11 @@ export default async function Home({
 
       {activeTab === "simulation" ? (
         <section className="grid-layout dashboard-grid">
-          <SectionCard kicker="Simulacion" title="Comparar cuota actual vs cuota aumentada" wide>
+          <SectionCard kicker="Simulación" title="Comparar cuota actual vs cuota aumentada" wide>
             <DebtSimulator />
           </SectionCard>
 
-          <SectionCard kicker="Lectura" title="Como interpretar la proyeccion">
+          <SectionCard kicker="Lectura" title="Cómo interpretar la proyección">
             <ul className="plain-list">
               <li>La primera columna representa la deuda con tu cuota actual.</li>
               <li>La segunda muestra el efecto de subir la cuota mensual.</li>
@@ -294,12 +294,12 @@ export default async function Home({
             <ReminderForm />
           </SectionCard>
 
-          <SectionCard kicker="Notificaciones" title="Como funcionan">
+          <SectionCard kicker="Notificaciones" title="Cómo funcionan">
             <ul className="plain-list">
-              <li>Los recordatorios de pago pueden avisar desde varios dias antes y paran al marcar el pago como realizado.</li>
-              <li>Las alarmas usan la fecha y hora exactas que configures para disparar la notificacion.</li>
+              <li>Los recordatorios de pago pueden avisar desde varios días antes y paran al marcar el pago como realizado.</li>
+              <li>Las alarmas usan la fecha y hora exactas que configures para disparar la notificación.</li>
               <li>Desde cada tarjeta puedes completar, editar o eliminar el recordatorio.</li>
-              <li>El envio automatico se ejecuta desde un endpoint interno pensado para cron y soporta correo hoy, con push y WhatsApp listos para habilitar.</li>
+              <li>El envío automático se ejecuta desde un endpoint interno pensado para cron y soporta correo hoy, con push y WhatsApp listos para habilitar.</li>
             </ul>
           </SectionCard>
 

@@ -53,8 +53,8 @@ export function IdleSessionManager() {
   return (
     <div className="session-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="session-expired-title">
       <div className="session-modal">
-        <p className="section-kicker">Sesion expirada</p>
-        <h2 id="session-expired-title">Tu sesion se cerro por 15 minutos de inactividad</h2>
+        <p className="section-kicker">Sesión expirada</p>
+        <h2 id="session-expired-title">Tu sesión se cerró por 15 minutos de inactividad</h2>
         <p className="meta">
           Para evitar que sigas trabajando y luego falle un guardado, confirma y te llevamos al login.
         </p>
@@ -63,7 +63,7 @@ export function IdleSessionManager() {
             type="button"
             onClick={() => {
               void signOut({
-                callbackUrl: "/login?message=Sesion%20cerrada%20por%2015%20minutos%20de%20inactividad"
+                callbackUrl: "/login?message=Sesi%C3%B3n%20cerrada%20por%2015%20minutos%20de%20inactividad"
               });
             }}
           >

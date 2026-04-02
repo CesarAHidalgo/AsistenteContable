@@ -860,11 +860,11 @@ export function RegisterForm() {
         <input name="email" type="email" required />
       </FieldLabel>
 
-      <FieldLabel label="Contrasena" required>
+      <FieldLabel label="Contraseña" required>
         <input name="password" type="password" minLength={8} required />
       </FieldLabel>
 
-      <FieldLabel label="Confirmar contrasena" required>
+      <FieldLabel label="Confirmar contraseña" required>
         <input name="confirmPassword" type="password" minLength={8} required />
       </FieldLabel>
 
