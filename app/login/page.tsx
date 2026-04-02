@@ -21,6 +21,7 @@ export default async function LoginPage({
   return (
     <main className="login-shell">
       <AuthCard
+        kicker="Acceso"
         title="Inicia sesión"
         description="Accede a tus finanzas con correo y contraseña o usa Google cuando lo tengas configurado."
       >

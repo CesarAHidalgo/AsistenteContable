@@ -20,6 +20,7 @@ export default async function RegisterPage({
   return (
     <main className="login-shell">
       <AuthCard
+        kicker="Cuenta"
         title="Crea tu cuenta"
         description="Registra un usuario con correo y contraseña para acceder a tu panel contable desde la web."
       >

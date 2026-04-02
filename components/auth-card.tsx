@@ -1,8 +1,10 @@
 export function AuthCard({
+  kicker = "Acceso",
   title,
   description,
   children
 }: {
+  kicker?: string;
   title: string;
   description: string;
   children: React.ReactNode;
@@ -11,7 +13,7 @@ export function AuthCard({
     <article className="auth-card">
       <div className="panel-header">
         <div>
-          <p className="section-kicker">Seguridad</p>
+          <p className="section-kicker">{kicker}</p>
           <h2>{title}</h2>
         </div>
       </div>
