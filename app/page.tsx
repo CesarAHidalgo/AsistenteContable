@@ -10,8 +10,7 @@ import {
   DebtPaymentForm,
   DebtManagementPanel,
   ReminderForm,
-  TransactionForm,
-  TransactionManagementPanel
+  TransactionForm
 } from "@/components/forms";
 import { MetricCard } from "@/components/metric-card";
 import { ReminderCard } from "@/components/reminder-card";
@@ -56,6 +55,17 @@ export default async function Home({
       const rightPayoffMonths = right.projection.payoffMonths ?? Number.MAX_SAFE_INTEGER;
       return leftPayoffMonths - rightPayoffMonths;
     });
+  const transactionsByCategory = Array.from(
+    data.transactions.reduce(
+      (map, transaction) => {
+        const bucket = map.get(transaction.category) ?? [];
+        bucket.push(transaction);
+        map.set(transaction.category, bucket);
+        return map;
+      },
+      new Map<string, typeof data.transactions>()
+    )
+  ).sort((left, right) => right[1].length - left[1].length);
 
   return (
     <main className="page-shell">
@@ -64,10 +74,6 @@ export default async function Home({
         <div className="hero-copy">
           <p className="eyebrow">AsistenteContable</p>
           <h1>Controla ingresos, gastos, cuotas y tarjetas sin perderte en una sola pantalla.</h1>
-          <p>
-            Todo se guarda en PostgreSQL y ahora el seguimiento de deudas estima interés, capital y pago
-            sugerido según el tipo de producto.
-          </p>
           <div className="hero-actions">
             <Link href="/integraciones" className="inline-link">
               Integraciones
@@ -104,7 +110,7 @@ export default async function Home({
 
       {activeTab === "overview" ? (
         <section className="grid-layout dashboard-grid">
-          <SectionCard kicker="Panorama" title="Pulso del mes">
+          <SectionCard kicker="Panorama" title="Pulso del mes" className="panel-stretch">
             <div className="stack-list">
               <div className="snapshot-card">
                 <span className="detail-label">Movimientos cargados este mes</span>
@@ -125,12 +131,12 @@ export default async function Home({
             />
           </SectionCard>
 
-          <SectionCard kicker="Movimientos" title="Ultimos registros">
+          <SectionCard kicker="Movimientos" title="Últimos registros" className="panel-stretch">
             <div className="stack-list">
               {data.transactions.length === 0 ? (
                 <p className="empty-state">Aún no tienes movimientos guardados.</p>
               ) : (
-                data.transactions.slice(0, 5).map((transaction) => (
+                data.transactions.slice(0, 3).map((transaction) => (
                   <TransactionCard key={transaction.id} transaction={transaction} />
                 ))
               )}
@@ -147,21 +153,12 @@ export default async function Home({
             </div>
           </SectionCard>
 
-          <SectionCard kicker="Agenda" title="Proximos pagos">
-            <div className="stack-list">
-              {data.reminders.length === 0 ? (
-                <p className="empty-state">No hay recordatorios creados.</p>
-              ) : (
-                data.reminders.slice(0, 5).map((reminder) => <ReminderCard key={reminder.id} reminder={reminder} />)
-              )}
-            </div>
-          </SectionCard>
         </section>
       ) : null}
 
       {activeTab === "transactions" ? (
-        <section className="grid-layout dashboard-grid">
-          <SectionCard kicker="Registro" title="Nuevo movimiento">
+        <section className="grid-layout dashboard-grid single-column">
+          <SectionCard kicker="Registro" title="Nuevo movimiento" wide>
             <TransactionForm
               creditCardDebts={data.debts
                 .filter((debt) => debt.type === "CREDIT_CARD")
@@ -175,21 +172,37 @@ export default async function Home({
             />
           </SectionCard>
 
-          <SectionCard kicker="Movimientos" title="Historial reciente" wide>
+          <SectionCard kicker="Movimientos" title="Historial por categoría" wide>
             <div className="stack-list">
               {data.transactions.length === 0 ? (
-                <p className="empty-state">Todavia no tienes movimientos guardados.</p>
+                <p className="empty-state">Todavía no tienes movimientos guardados.</p>
               ) : (
-                data.transactions.map((transaction) => (
-                  <TransactionCard key={transaction.id} transaction={transaction} />
+                transactionsByCategory.map(([category, transactions]) => (
+                  <details key={category} className="item-card category-group">
+                    <summary className="category-group-summary">
+                      <div>
+                        <strong>{category}</strong>
+                        <p className="meta">{transactions.length} movimiento(s)</p>
+                      </div>
+                      <span className="chip neutral">
+                        {formatCurrency(
+                          transactions.reduce((sum, transaction) => sum + transaction.amount, 0)
+                        )}
+                      </span>
+                    </summary>
+                    <div className="statement-purchase-body">
+                      <div className="stack-list">
+                        {transactions.map((transaction) => (
+                          <TransactionCard key={transaction.id} transaction={transaction} />
+                        ))}
+                      </div>
+                    </div>
+                  </details>
                 ))
               )}
             </div>
           </SectionCard>
 
-          <SectionCard kicker="Administracion" title="Editar o eliminar movimientos" wide>
-            <TransactionManagementPanel transactions={data.transactions} />
-          </SectionCard>
         </section>
       ) : null}
 

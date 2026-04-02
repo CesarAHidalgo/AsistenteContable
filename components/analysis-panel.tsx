@@ -130,16 +130,16 @@ export function AnalysisPanel({ analytics }: { analytics: AnalysisData }) {
         <div className="panel-header">
           <div>
             <h3>Filtros de lectura</h3>
-            <p className="meta">Ajusta el analisis por periodo, tipo, categoria o metodo de pago.</p>
+            <p className="meta">Ajusta el análisis por período, tipo, categoría o método de pago.</p>
           </div>
         </div>
         <div className="analysis-filters">
           <label>
-            Periodo
+            Período
             <select value={periodFilter} onChange={(event) => setPeriodFilter(event.target.value as FilterPeriod)}>
               <option value="CURRENT_MONTH">Mes calendario actual</option>
-              <option value="LAST_90_DAYS">Ultimos 90 dias</option>
-              <option value="ALL">Todo el historico cargado</option>
+              <option value="LAST_90_DAYS">Últimos 90 días</option>
+              <option value="ALL">Todo el histórico cargado</option>
             </select>
           </label>
           <label>
@@ -151,7 +151,7 @@ export function AnalysisPanel({ analytics }: { analytics: AnalysisData }) {
             </select>
           </label>
           <label>
-            Categoria
+            Categoría
             <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
               <option value="ALL">Todas</option>
               {categories.map((category) => (
@@ -162,7 +162,7 @@ export function AnalysisPanel({ analytics }: { analytics: AnalysisData }) {
             </select>
           </label>
           <label>
-            Metodo de pago
+            Método de pago
             <select
               value={paymentMethodFilter}
               onChange={(event) => setPaymentMethodFilter(event.target.value)}
@@ -194,7 +194,7 @@ export function AnalysisPanel({ analytics }: { analytics: AnalysisData }) {
           <strong>{formatCurrency(filteredExpenses)}</strong>
         </div>
         <div>
-          <span className="detail-label">Movimientos en analisis</span>
+          <span className="detail-label">Movimientos en análisis</span>
           <strong>{filteredTransactions.length}</strong>
         </div>
         <div>
@@ -206,17 +206,17 @@ export function AnalysisPanel({ analytics }: { analytics: AnalysisData }) {
           <strong>{formatCurrency(averageIncomeTicket)}</strong>
         </div>
         <div>
-          <span className="detail-label">Categoria dominante</span>
+          <span className="detail-label">Categoría dominante</span>
           <strong>{categoryBreakdown[0]?.label ?? "Sin datos"}</strong>
         </div>
         <div>
-          <span className="detail-label">Metodo mas usado</span>
+          <span className="detail-label">Método más usado</span>
           <strong>{paymentBreakdown[0]?.label ?? "Sin datos"}</strong>
         </div>
       </div>
 
       <section className="analysis-card">
-        <h3>Comparacion de ciclos</h3>
+        <h3>Comparación de ciclos</h3>
         <div className="analysis-comparison-grid">
           <ComparisonCard
             title="Ciclo actual"
@@ -235,7 +235,7 @@ export function AnalysisPanel({ analytics }: { analytics: AnalysisData }) {
 
       <div className="analysis-grid">
         <section className="analysis-card">
-          <h3>Gasto por categoria</h3>
+          <h3>Gasto por categoría</h3>
           {categoryBreakdown.length === 0 ? (
             <p className="empty-state">No hay gastos en el filtro actual.</p>
           ) : (
@@ -248,7 +248,7 @@ export function AnalysisPanel({ analytics }: { analytics: AnalysisData }) {
         </section>
 
         <section className="analysis-card">
-          <h3>Gasto por metodo de pago</h3>
+          <h3>Gasto por método de pago</h3>
           {paymentBreakdown.length === 0 ? (
             <p className="empty-state">No hay egresos para el filtro actual.</p>
           ) : (
@@ -283,7 +283,7 @@ export function AnalysisPanel({ analytics }: { analytics: AnalysisData }) {
       </section>
 
       <section className="analysis-card">
-        <h3>Tendencia de los ultimos 6 meses</h3>
+        <h3>Tendencia de los últimos 6 meses</h3>
         <div className="stack-list">
           {analytics.monthlyTrend.map((item) => (
             <article key={item.key} className="analysis-list-row">

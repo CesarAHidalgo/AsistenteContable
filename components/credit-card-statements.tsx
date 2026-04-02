@@ -77,7 +77,7 @@ export function CreditCardStatements({
   creditCardOptions: CreditCardOption[];
 }) {
   if (debts.length === 0) {
-    return <p className="empty-state">Todavia no has agregado tarjetas de credito.</p>;
+    return <p className="empty-state">Todavía no has agregado tarjetas de crédito.</p>;
   }
 
   return (
@@ -101,13 +101,13 @@ export function CreditCardStatements({
               </p>
               {debt.cardPurchaseSummary?.nextStatementDate ? (
                 <p className="meta">
-                  Proximo corte {formatDate(debt.cardPurchaseSummary.nextStatementDate)}
+                  Próximo corte {formatDate(debt.cardPurchaseSummary.nextStatementDate)}
                 </p>
               ) : null}
             </div>
             <div className="statement-metrics">
               <div className="statement-metric">
-                <span className="detail-label">Pago minimo estimado</span>
+                <span className="detail-label">Pago mínimo estimado</span>
                 <strong>{formatCurrency(debt.cardPurchaseSummary?.projectedCurrentPayment ?? 0)}</strong>
               </div>
               <div className="statement-metric">
@@ -170,7 +170,7 @@ export function CreditCardStatements({
                     )}
                   />
                   <p className="meta">
-                    Cuando cierres el corte, guardamos una foto fija del extracto actual para compararlo despues
+                    Cuando cierres el corte, guardamos una foto fija del extracto actual para compararlo después
                     con pagos y cortes futuros.
                   </p>
                   <button type="submit">Cerrar corte actual</button>
@@ -183,7 +183,7 @@ export function CreditCardStatements({
                   <strong>{formatCurrency(debt.cardPurchaseSummary.currentStatementTotal)}</strong>
                 </div>
                 <div className="snapshot-card">
-                  <span className="detail-label">Facturado prox. corte</span>
+                  <span className="detail-label">Facturado próximo corte</span>
                   <strong>{formatCurrency(debt.cardPurchaseSummary.nextStatementTotal)}</strong>
                 </div>
                 <div className="snapshot-card">
@@ -191,7 +191,7 @@ export function CreditCardStatements({
                   <strong>{formatCurrency(debt.cardPurchaseSummary.currentCyclePayments)}</strong>
                 </div>
                 <div className="snapshot-card">
-                  <span className="detail-label">Minimo prox. corte</span>
+                  <span className="detail-label">Mínimo próximo corte</span>
                   <strong>{formatCurrency(debt.cardPurchaseSummary.nextProjectedPayment)}</strong>
                 </div>
               </div>
@@ -223,11 +223,11 @@ export function CreditCardStatements({
                 <div className="panel-header">
                   <div>
                     <h4>Historial de cortes cerrados</h4>
-                    <p className="meta">Aqui queda congelado lo que realmente tenia ese extracto al cerrarlo.</p>
+                    <p className="meta">Aquí queda congelado lo que realmente tenía ese extracto al cerrarlo.</p>
                   </div>
                 </div>
                 {debt.statementSnapshots.length === 0 ? (
-                  <p className="empty-state">Todavia no has cerrado cortes para esta tarjeta.</p>
+                  <p className="empty-state">Todavía no has cerrado cortes para esta tarjeta.</p>
                 ) : (
                   <div className="stack-list">
                     {debt.statementSnapshots.map((snapshot) => (
@@ -275,7 +275,7 @@ export function CreditCardStatements({
                       <form action={updateCreditCardPurchaseAction} className="form-grid compact-form inline-form">
                         <input type="hidden" name="transactionId" value={purchase.id} />
                         <label>
-                          <span>Descripcion</span>
+                          <span>Descripción</span>
                           <input name="description" defaultValue={purchase.description} required />
                         </label>
                         <label>
@@ -299,7 +299,7 @@ export function CreditCardStatements({
                           />
                         </label>
                         <label>
-                          <span>Numero de cuotas</span>
+                          <span>Número de cuotas</span>
                           <input
                             name="installmentCount"
                             type="number"
@@ -370,7 +370,7 @@ export function CreditCardStatements({
               </div>
             </>
           ) : (
-            <p className="empty-state">Esta tarjeta aun no tiene compras registradas para armar el extracto.</p>
+            <p className="empty-state">Esta tarjeta aún no tiene compras registradas para armar el extracto.</p>
           )}
         </article>
       ))}
