@@ -21,8 +21,9 @@ export default async function LoginPage({
   return (
     <main className="login-shell">
       <AuthCard
-        title="Inicia sesion"
-        description="Accede a tus finanzas con correo y contrasena o usa Google cuando lo tengas configurado."
+        kicker="Acceso"
+        title="Inicia sesión"
+        description="Accede a tus finanzas con correo y contraseña o usa Google cuando lo tengas configurado."
       >
         <CredentialsLoginForm />
 
@@ -33,7 +34,7 @@ export default async function LoginPage({
           </>
         ) : (
           <p className="auth-helper">
-            Google Sign-In aparecera aqui cuando definas `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en `.env`.
+            Google Sign-In aparecerá aquí cuando definas `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en `.env`.
           </p>
         )}
 
@@ -41,7 +42,7 @@ export default async function LoginPage({
         {params.message ? <p className="success-banner">{params.message}</p> : null}
 
         <p className="auth-helper">
-          Si aun no tienes cuenta, puedes <Link href="/registro">registrarte aqui</Link>.
+          Si aún no tienes cuenta, puedes <Link href="/registro">registrarte aquí</Link>.
         </p>
       </AuthCard>
     </main>

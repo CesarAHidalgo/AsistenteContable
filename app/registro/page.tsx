@@ -20,13 +20,14 @@ export default async function RegisterPage({
   return (
     <main className="login-shell">
       <AuthCard
+        kicker="Cuenta"
         title="Crea tu cuenta"
-        description="Registra un usuario con correo y contrasena para acceder a tu panel contable desde web."
+        description="Registra un usuario con correo y contraseña para acceder a tu panel contable desde la web."
       >
         <RegisterForm />
         {params.error ? <p className="error-banner">{params.error}</p> : null}
         <p className="auth-helper">
-          Si ya tienes cuenta, <Link href="/login">inicia sesion aqui</Link>.
+          Si ya tienes cuenta, <Link href="/login">inicia sesión aquí</Link>.
         </p>
       </AuthCard>
     </main>

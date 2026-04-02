@@ -20,7 +20,7 @@ export function CredentialsLoginForm() {
         });
 
         if (result?.error) {
-          window.location.href = "/login?error=Credenciales%20invalidas";
+          window.location.href = "/login?error=Credenciales%20inv%C3%A1lidas";
           return;
         }
 
@@ -32,7 +32,7 @@ export function CredentialsLoginForm() {
         <input name="email" type="email" required />
       </label>
       <label>
-        Contrasena
+        Contraseña
         <input name="password" type="password" required />
       </label>
       <button type="submit">Entrar al panel</button>
@@ -63,7 +63,7 @@ export function LogoutButton() {
         void signOut({ callbackUrl: "/login" });
       }}
     >
-      Cerrar sesion
+      Cerrar sesión
     </button>
   );
 }

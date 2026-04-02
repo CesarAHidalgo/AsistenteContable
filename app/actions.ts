@@ -22,6 +22,10 @@ function requiredString(value: FormDataEntryValue | null) {
   return String(value ?? "").trim();
 }
 
+function rawString(value: FormDataEntryValue | null) {
+  return String(value ?? "");
+}
+
 function checked(value: FormDataEntryValue | null) {
   return value === "on" || value === "true";
 }
@@ -29,11 +33,11 @@ function checked(value: FormDataEntryValue | null) {
 export async function registerAction(formData: FormData) {
   const name = requiredString(formData.get("name"));
   const email = requiredString(formData.get("email")).toLowerCase();
-  const password = requiredString(formData.get("password"));
-  const confirmPassword = requiredString(formData.get("confirmPassword"));
+  const password = rawString(formData.get("password"));
+  const confirmPassword = rawString(formData.get("confirmPassword"));
 
   if (password !== confirmPassword) {
-    redirect("/registro?error=Las%20contrasenas%20no%20coinciden");
+    redirect("/registro?error=Las%20contrase%C3%B1as%20no%20coinciden");
   }
 
   const existingUser = await prisma.user.findUnique({
@@ -56,7 +60,7 @@ export async function registerAction(formData: FormData) {
     }
   });
 
-  redirect("/login?message=Cuenta%20creada.%20Ahora%20puedes%20iniciar%20sesion");
+  redirect("/login?message=Cuenta%20creada.%20Ahora%20puedes%20iniciar%20sesi%C3%B3n");
 }
 
 export async function createTransactionAction(formData: FormData) {

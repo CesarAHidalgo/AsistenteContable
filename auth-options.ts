@@ -11,11 +11,12 @@ const providers: NonNullable<NextAuthOptions["providers"]> = [
     name: "Credentials",
     credentials: {
       email: { label: "Correo", type: "email" },
-      password: { label: "Contrasena", type: "password" }
+      password: { label: "Contraseña", type: "password" }
     },
     async authorize(credentials) {
       const email = String(credentials?.email ?? "").trim().toLowerCase();
       const password = String(credentials?.password ?? "");
+      const trimmedPassword = password.trim();
 
       if (!email || !password) {
         return null;
@@ -29,7 +30,11 @@ const providers: NonNullable<NextAuthOptions["providers"]> = [
         return null;
       }
 
-      if (!verifyPassword(password, user.passwordHash)) {
+      const matchesPassword =
+        verifyPassword(password, user.passwordHash) ||
+        (trimmedPassword !== password && verifyPassword(trimmedPassword, user.passwordHash));
+
+      if (!matchesPassword) {
         return null;
       }
 
