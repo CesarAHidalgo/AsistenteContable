@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LogoutButton } from "@/components/auth-client-controls";
 import { ApiTokenForm, RevokeTokenForm } from "@/components/forms";
 import { IdleSessionManager } from "@/components/idle-session-manager";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { SectionCard } from "@/components/section-card";
 import {
   dispatchRemindersNowAction,
@@ -54,10 +55,14 @@ export default async function IntegracionesPage({
       </section>
 
       <section className="grid-layout single-column">
-        <SectionCard kicker="Correo" title="Estado del canal SMTP">
+        <SectionCard kicker="Correo" title="Estado del canal de correo">
           <div className="detail-grid">
             <div>
-              <span className="detail-label">Configuración SMTP</span>
+              <span className="detail-label">Proveedor</span>
+              <strong>{data.integrations.channelStatus.emailProvider}</strong>
+            </div>
+            <div>
+              <span className="detail-label">Estado del canal</span>
               <strong>
                 {data.integrations.channelStatus.emailConfigured ? "Lista" : "Pendiente"}
               </strong>
@@ -69,12 +74,17 @@ export default async function IntegracionesPage({
           </div>
           <div className="hero-actions">
             <form action={verifySmtpAction}>
-              <button type="submit" className="ghost-button">
-                Verificar conexión SMTP
-              </button>
+              <PendingSubmitButton
+                className="ghost-button"
+                idleLabel="Verificar conexión del correo"
+                pendingLabel="Verificando conexión..."
+              />
             </form>
             <form action={sendTestEmailAction}>
-              <button type="submit">Enviar correo de prueba</button>
+              <PendingSubmitButton
+                idleLabel="Enviar correo de prueba"
+                pendingLabel="Enviando correo..."
+              />
             </form>
           </div>
         </SectionCard>
@@ -84,7 +94,10 @@ export default async function IntegracionesPage({
             Este botón te permite probar el flujo real de recordatorios por correo sin esperar al cron.
           </p>
           <form action={dispatchRemindersNowAction}>
-            <button type="submit">Despachar recordatorios ahora</button>
+            <PendingSubmitButton
+              idleLabel="Despachar recordatorios ahora"
+              pendingLabel="Despachando recordatorios..."
+            />
           </form>
         </SectionCard>
 

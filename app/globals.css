@@ -76,10 +76,41 @@ button {
   color: white;
 }
 
+button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
 .ghost-button {
   background: transparent;
   border: 1px solid var(--line);
   color: var(--ink);
+}
+
+.button-inline-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.button-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: currentColor;
+  animation: spin 0.8s linear infinite;
+}
+
+.ghost-button .button-spinner {
+  border-color: rgba(23, 35, 49, 0.2);
+  border-top-color: currentColor;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .page-shell {
