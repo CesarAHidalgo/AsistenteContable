@@ -54,6 +54,24 @@ function smtpConfig() {
   };
 }
 
+function createTransporter() {
+  const config = smtpConfig();
+
+  if (!config) {
+    return null;
+  }
+
+  return {
+    transporter: nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: config.auth
+    }),
+    from: config.from
+  };
+}
+
 function whatsappConfig() {
   const token = process.env.WHATSAPP_ACCESS_TOKEN?.trim();
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
@@ -92,24 +110,17 @@ function buildReminderMessage(reminder: ReminderWithUser) {
 }
 
 async function sendEmail(reminder: ReminderWithUser) {
-  const config = smtpConfig();
+  const transport = createTransporter();
 
-  if (!config) {
+  if (!transport) {
     return {
       status: ReminderDeliveryStatus.SKIPPED,
       message: "SMTP no configurado"
     };
   }
 
-  const transporter = nodemailer.createTransport({
-    host: config.host,
-    port: config.port,
-    secure: config.secure,
-    auth: config.auth
-  });
-
-  await transporter.sendMail({
-    from: config.from,
+  await transport.transporter.sendMail({
+    from: transport.from,
     to: reminder.user.email,
     subject: reminder.type === ReminderType.PAYMENT ? `Pago pendiente: ${reminder.title}` : `Alarma: ${reminder.title}`,
     text: buildReminderMessage(reminder)
@@ -118,6 +129,61 @@ async function sendEmail(reminder: ReminderWithUser) {
   return {
     status: ReminderDeliveryStatus.SENT,
     message: `Correo enviado a ${reminder.user.email}`
+  };
+}
+
+export function getNotificationChannelStatus(pushSubscriptionCount = 0) {
+  return {
+    emailConfigured: Boolean(smtpConfig()),
+    pushConfigured: Boolean(pushConfig()),
+    whatsappConfigured: Boolean(whatsappConfig()),
+    pushSubscriptionCount
+  };
+}
+
+export async function verifySmtpConnection() {
+  const transport = createTransporter();
+
+  if (!transport) {
+    return {
+      ok: false,
+      message: "SMTP no configurado"
+    };
+  }
+
+  await transport.transporter.verify();
+
+  return {
+    ok: true,
+    message: "Conexión SMTP verificada correctamente"
+  };
+}
+
+export async function sendTestEmail(targetEmail: string) {
+  const transport = createTransporter();
+
+  if (!transport) {
+    return {
+      ok: false,
+      message: "SMTP no configurado"
+    };
+  }
+
+  await transport.transporter.sendMail({
+    from: transport.from,
+    to: targetEmail,
+    subject: "Prueba de correo de AsistenteContable",
+    text: [
+      "AsistenteContable",
+      "",
+      "Esta es una prueba del canal de correo.",
+      `Fecha: ${formatDateTime(new Date())}`
+    ].join("\n")
+  });
+
+  return {
+    ok: true,
+    message: `Correo de prueba enviado a ${targetEmail}`
   };
 }
 

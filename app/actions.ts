@@ -8,6 +8,11 @@ import { generateOpaqueToken, hashPassword, hashToken } from "@/lib/crypto";
 import { getCreditCardPurchaseCycle, splitDebtPayment } from "@/lib/finance";
 import { logInfo } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
+import {
+  dispatchReminderNotifications,
+  sendTestEmail,
+  verifySmtpConnection
+} from "@/lib/reminder-notifications";
 
 function parseAmount(value: FormDataEntryValue | null) {
   return Number(value ?? 0);
@@ -1002,4 +1007,44 @@ export async function revokeApiTokenAction(formData: FormData) {
   });
 
   revalidatePath("/integraciones");
+}
+
+export async function verifySmtpAction() {
+  const user = await requireUser();
+  const result = await verifySmtpConnection();
+
+  logInfo("action.smtp.verify", {
+    userId: user.id,
+    ok: result.ok
+  });
+
+  redirect(`/integraciones?message=${encodeURIComponent(result.message)}&status=${result.ok ? "success" : "warning"}`);
+}
+
+export async function sendTestEmailAction() {
+  const user = await requireUser();
+  const result = await sendTestEmail(user.email);
+
+  logInfo("action.smtp.test_email", {
+    userId: user.id,
+    ok: result.ok
+  });
+
+  redirect(`/integraciones?message=${encodeURIComponent(result.message)}&status=${result.ok ? "success" : "warning"}`);
+}
+
+export async function dispatchRemindersNowAction() {
+  const user = await requireUser();
+  const summary = await dispatchReminderNotifications();
+
+  logInfo("action.reminders.dispatch_now", {
+    userId: user.id,
+    ...summary
+  });
+
+  redirect(
+    `/integraciones?message=${encodeURIComponent(
+      `Despacho ejecutado. Evaluados: ${summary.evaluated}, enviados: ${summary.sent}, omitidos: ${summary.skipped}, fallidos: ${summary.failed}`
+    )}&status=${summary.failed > 0 ? "warning" : "success"}`
+  );
 }
