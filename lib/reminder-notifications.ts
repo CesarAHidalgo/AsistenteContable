@@ -127,17 +127,195 @@ function buildReminderMessage(reminder: ReminderWithUser) {
   return lines.filter(Boolean).join("\n");
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function buildEmailShell({
+  eyebrow,
+  title,
+  accent,
+  accentSoft,
+  icon,
+  body,
+  details,
+  footer,
+  actionLabel,
+  actionUrl
+}: {
+  eyebrow: string;
+  title: string;
+  accent: string;
+  accentSoft: string;
+  icon: string;
+  body: string;
+  details: Array<{ label: string; value: string }>;
+  footer: string;
+  actionLabel?: string;
+  actionUrl?: string;
+}) {
+  const detailsHtml = details
+    .map(
+      (detail) => `
+        <tr>
+          <td style="padding: 0 0 10px; color: #5f6f87; font-size: 13px; width: 150px;">${escapeHtml(detail.label)}</td>
+          <td style="padding: 0 0 10px; color: #10233d; font-size: 14px; font-weight: 600;">${escapeHtml(detail.value)}</td>
+        </tr>
+      `
+    )
+    .join("");
+  const actionHtml =
+    actionLabel && actionUrl
+      ? `
+        <div style="margin: 0 0 22px;">
+          <a
+            href="${escapeHtml(actionUrl)}"
+            style="display: inline-block; padding: 13px 18px; border-radius: 999px; background: ${accent}; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 700;"
+          >
+            ${escapeHtml(actionLabel)}
+          </a>
+        </div>
+      `
+      : "";
+
+  return `
+    <!doctype html>
+    <html lang="es">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>${escapeHtml(title)}</title>
+      </head>
+      <body style="margin: 0; padding: 24px; background: #f4f7fb; font-family: Arial, Helvetica, sans-serif; color: #10233d;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+          <tr>
+            <td>
+              <div style="background: #ffffff; border: 1px solid #dbe5f0; border-radius: 24px; overflow: hidden;">
+                <div style="padding: 28px 32px; background: linear-gradient(135deg, ${accent} 0%, #10233d 100%); color: #ffffff;">
+                  <div style="display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; border-radius: 50%; background: rgba(255, 255, 255, 0.18); font-size: 24px; margin-bottom: 18px;">
+                    ${escapeHtml(icon)}
+                  </div>
+                  <p style="margin: 0 0 10px; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.88;">
+                    ${escapeHtml(eyebrow)}
+                  </p>
+                  <h1 style="margin: 0; font-size: 28px; line-height: 1.2;">
+                    ${escapeHtml(title)}
+                  </h1>
+                </div>
+
+                <div style="padding: 28px 32px;">
+                  <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.7; color: #334862;">
+                    ${escapeHtml(body)}
+                  </p>
+
+                  <div style="padding: 18px 20px; border: 1px solid #dbe5f0; border-radius: 18px; background: ${accentSoft}; margin-bottom: 20px;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                      ${detailsHtml}
+                    </table>
+                  </div>
+
+                  ${actionHtml}
+
+                  <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #6c7d96;">
+                    ${escapeHtml(footer)}
+                  </p>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+}
+
+function buildReminderHtml(reminder: ReminderWithUser) {
+  const isPayment = reminder.type === ReminderType.PAYMENT;
+  const dashboardUrl = process.env.NEXTAUTH_URL?.trim() || undefined;
+
+  return buildEmailShell({
+    eyebrow: "Asistente Contable",
+    title: isPayment ? `Pago pendiente: ${reminder.title}` : `Alarma: ${reminder.title}`,
+    accent: isPayment ? "#1f8a8a" : "#2b6cb0",
+    accentSoft: isPayment ? "#eef9f8" : "#eef5ff",
+    icon: isPayment ? "COP" : "AL",
+    body: isPayment
+      ? "Te recordamos que este pago está dentro de tu ventana de aviso configurada. Si ya lo realizaste, márcalo como completado para detener futuras notificaciones."
+      : "Esta es una alarma programada desde tu panel para que no se te pase una actividad importante.",
+    details: [
+      {
+        label: isPayment ? "Fecha de pago" : "Momento de la alarma",
+        value: isPayment
+          ? formatDate(reminder.dueDate)
+          : formatDateTime(reminder.notificationAt ?? reminder.dueDate)
+      },
+      ...(reminder.amount
+        ? [
+            {
+              label: "Valor estimado",
+              value: formatCurrency(reminder.amount.toNumber())
+            }
+          ]
+        : []),
+      {
+        label: "Canal",
+        value: "Correo electrónico"
+      }
+    ],
+    footer:
+      "Puedes revisar este recordatorio desde AsistenteContable y marcarlo como completado cuando corresponda.",
+    actionLabel: "Abrir Asistente Contable",
+    actionUrl: dashboardUrl
+  });
+}
+
+function buildTestEmailHtml(sentAt: Date) {
+  const dashboardUrl = process.env.NEXTAUTH_URL?.trim() || undefined;
+
+  return buildEmailShell({
+    eyebrow: "Asistente Contable",
+    title: "Prueba del canal de correo",
+    accent: "#2f9e7d",
+    accentSoft: "#eef9f4",
+    icon: "OK",
+    body: "Este mensaje confirma que el canal de correo está configurado correctamente y puede enviar notificaciones desde la aplicación.",
+    details: [
+      {
+        label: "Proveedor",
+        value: "Correo configurado en Integraciones"
+      },
+      {
+        label: "Fecha de prueba",
+        value: formatDateTime(sentAt)
+      }
+    ],
+    footer:
+      "Si recibiste este correo, ya puedes usar recordatorios por email desde tu entorno actual.",
+    actionLabel: "Ir al panel",
+    actionUrl: dashboardUrl
+  });
+}
+
 async function sendEmail(reminder: ReminderWithUser) {
   const resend = resendConfig();
+  const subject =
+    reminder.type === ReminderType.PAYMENT ? `Pago pendiente: ${reminder.title}` : `Alarma: ${reminder.title}`;
+  const text = buildReminderMessage(reminder);
+  const html = buildReminderHtml(reminder);
 
   if (resend) {
     const client = new Resend(resend.apiKey);
     await client.emails.send({
       from: resend.from,
       to: reminder.user.email,
-      subject:
-        reminder.type === ReminderType.PAYMENT ? `Pago pendiente: ${reminder.title}` : `Alarma: ${reminder.title}`,
-      text: buildReminderMessage(reminder)
+      subject,
+      text,
+      html
     });
 
     return {
@@ -158,8 +336,9 @@ async function sendEmail(reminder: ReminderWithUser) {
   await transport.transporter.sendMail({
     from: transport.from,
     to: reminder.user.email,
-    subject: reminder.type === ReminderType.PAYMENT ? `Pago pendiente: ${reminder.title}` : `Alarma: ${reminder.title}`,
-    text: buildReminderMessage(reminder)
+    subject,
+    text,
+    html
   });
 
   return {
@@ -210,6 +389,14 @@ export async function verifySmtpConnection() {
 
 export async function sendTestEmail(targetEmail: string) {
   const resend = resendConfig();
+  const sentAt = new Date();
+  const text = [
+    "AsistenteContable",
+    "",
+    resend ? "Esta es una prueba del canal de correo con Resend." : "Esta es una prueba del canal de correo.",
+    `Fecha: ${formatDateTime(sentAt)}`
+  ].join("\n");
+  const html = buildTestEmailHtml(sentAt);
 
   if (resend) {
     const client = new Resend(resend.apiKey);
@@ -217,12 +404,8 @@ export async function sendTestEmail(targetEmail: string) {
       from: resend.from,
       to: targetEmail,
       subject: "Prueba de correo de AsistenteContable",
-      text: [
-        "AsistenteContable",
-        "",
-        "Esta es una prueba del canal de correo con Resend.",
-        `Fecha: ${formatDateTime(new Date())}`
-      ].join("\n")
+      text,
+      html
     });
 
     return {
@@ -244,12 +427,8 @@ export async function sendTestEmail(targetEmail: string) {
     from: transport.from,
     to: targetEmail,
     subject: "Prueba de correo de AsistenteContable",
-    text: [
-      "AsistenteContable",
-      "",
-      "Esta es una prueba del canal de correo.",
-      `Fecha: ${formatDateTime(new Date())}`
-    ].join("\n")
+    text,
+    html
   });
 
   return {
