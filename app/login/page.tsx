@@ -42,7 +42,11 @@ export default async function LoginPage({
         {params.message ? <p className="success-banner">{params.message}</p> : null}
 
         <p className="auth-helper">
-          Si aún no tienes cuenta, puedes <Link href="/registro">registrarte aquí</Link>.
+          Si aún no tienes cuenta, puedes{" "}
+          <Link href="/registro" className="auth-inline-link">
+            registrarte aquí
+          </Link>
+          .
         </p>
       </AuthCard>
     </main>

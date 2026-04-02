@@ -1,3 +1,4 @@
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { deleteTransactionAction, updateTransactionAction } from "@/app/actions";
 import { formatDateInput, transactionTypeOptions } from "@/lib/serializers";
 import { formatCurrency, formatDate, paymentMethodLabel } from "@/lib/utils";
@@ -21,7 +22,7 @@ export function TransactionCard({ transaction }: { transaction: Transaction }) {
   const isCreditCard = transaction.paymentMethod === "CREDIT_CARD";
 
   return (
-    <article className="item-card">
+    <article className="item-card transaction-card">
       <header>
         <div>
           <h3>{transaction.description}</h3>
@@ -43,16 +44,16 @@ export function TransactionCard({ transaction }: { transaction: Transaction }) {
         </span>
       </header>
 
-      <div className="reminder-actions">
+      <div className="record-actions transaction-actions">
         <details className="inline-editor">
-          <summary>Editar</summary>
+          <summary className="action-summary-button">Editar</summary>
           <form action={updateTransactionAction} className="form-grid compact-form inline-form">
             <input type="hidden" name="transactionId" value={transaction.id} />
             <input type="hidden" name="paymentMethod" value={transaction.paymentMethod} />
             <input type="hidden" name="creditCardDebtName" value={transaction.creditCardDebt?.name ?? ""} />
 
             <label>
-              <span>Descripcion</span>
+              <span>Descripción</span>
               <input name="description" defaultValue={transaction.description} required />
             </label>
 
@@ -73,7 +74,7 @@ export function TransactionCard({ transaction }: { transaction: Transaction }) {
             </label>
 
             <label>
-              <span>Categoria</span>
+              <span>Categoría</span>
               <input name="category" defaultValue={transaction.category} required />
             </label>
 
@@ -89,7 +90,7 @@ export function TransactionCard({ transaction }: { transaction: Transaction }) {
 
             {isCreditCard ? (
               <label>
-                <span>Numero de cuotas</span>
+                <span>Número de cuotas</span>
                 <input
                   name="installmentCount"
                   type="number"
@@ -104,18 +105,15 @@ export function TransactionCard({ transaction }: { transaction: Transaction }) {
           </form>
         </details>
 
-        <details className="inline-editor">
-          <summary>Eliminar</summary>
-          <form action={deleteTransactionAction} className="form-grid compact-form inline-form">
-            <input type="hidden" name="transactionId" value={transaction.id} />
-            <p className="meta">
-              Esto elimina el movimiento y revierte el impacto si estaba asociado a una tarjeta de credito.
-            </p>
-            <button type="submit" className="ghost-button destructive-button">
-              Confirmar eliminacion
-            </button>
-          </form>
-        </details>
+        <form action={deleteTransactionAction}>
+          <input type="hidden" name="transactionId" value={transaction.id} />
+          <ConfirmSubmitButton
+            className="ghost-button destructive-button"
+            idleLabel="Eliminar"
+            pendingLabel="Eliminando..."
+            confirmMessage="¿Seguro que quieres eliminar este movimiento?"
+          />
+        </form>
       </div>
     </article>
   );
