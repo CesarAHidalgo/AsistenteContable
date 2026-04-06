@@ -35,6 +35,19 @@ function checked(value: FormDataEntryValue | null) {
   return value === "on" || value === "true";
 }
 
+function getRedirectTab(formData: FormData, fallback: string) {
+  return requiredString(formData.get("redirectTab")) || fallback;
+}
+
+function redirectWithFeedback(
+  tab: string,
+  status: "success" | "warning" | "error",
+  message: string
+): never {
+  revalidatePath("/");
+  redirect(`/?tab=${tab}&status=${status}&message=${encodeURIComponent(message)}`);
+}
+
 export async function registerAction(formData: FormData) {
   const name = requiredString(formData.get("name"));
   const email = requiredString(formData.get("email")).toLowerCase();
@@ -70,6 +83,7 @@ export async function registerAction(formData: FormData) {
 
 export async function createTransactionAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "transactions");
   const installmentCount = Number(formData.get("installmentCount") || 0);
   const paymentMethod = requiredString(formData.get("paymentMethod")) as PaymentMethod;
   const transactionAt = new Date(requiredString(formData.get("transactionAt")));
@@ -81,7 +95,7 @@ export async function createTransactionAction(formData: FormData) {
 
   if (paymentMethod === "CREDIT_CARD") {
     if (!creditCardDebtId) {
-      redirect("/?error=credit-card-required");
+      redirectWithFeedback(redirectTab, "warning", "Selecciona la tarjeta para guardar la compra.");
     }
 
     const debt = await prisma.debt.findFirst({
@@ -93,7 +107,7 @@ export async function createTransactionAction(formData: FormData) {
     });
 
     if (!debt) {
-      redirect("/?error=credit-card-not-found");
+      redirectWithFeedback(redirectTab, "warning", "No encontramos la tarjeta seleccionada.");
     }
 
     const purchaseCycle = getCreditCardPurchaseCycle(
@@ -144,8 +158,7 @@ export async function createTransactionAction(formData: FormData) {
       creditCardDebtId
     });
 
-    revalidatePath("/");
-    return;
+    redirectWithFeedback(redirectTab, "success", `Movimiento guardado: ${requiredString(formData.get("description"))}.`);
   }
 
   await prisma.transaction.create({
@@ -170,11 +183,12 @@ export async function createTransactionAction(formData: FormData) {
     amount
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", `Movimiento guardado: ${requiredString(formData.get("description"))}.`);
 }
 
 export async function updateTransactionAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "transactions");
   const transactionId = requiredString(formData.get("transactionId"));
   const existingTransaction = await prisma.transaction.findFirst({
     where: { id: transactionId, userId: user.id },
@@ -186,7 +200,7 @@ export async function updateTransactionAction(formData: FormData) {
   });
 
   if (!existingTransaction) {
-    redirect("/?error=transaction-not-found");
+    redirectWithFeedback(redirectTab, "warning", "No encontramos el movimiento que intentas editar.");
   }
 
   const newDescription = requiredString(formData.get("description"));
@@ -233,11 +247,12 @@ export async function updateTransactionAction(formData: FormData) {
     });
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", `Movimiento actualizado: ${newDescription}.`);
 }
 
 export async function deleteTransactionAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "transactions");
   const transactionId = requiredString(formData.get("transactionId"));
   const existingTransaction = await prisma.transaction.findFirst({
     where: { id: transactionId, userId: user.id },
@@ -249,7 +264,7 @@ export async function deleteTransactionAction(formData: FormData) {
   });
 
   if (!existingTransaction) {
-    redirect("/?error=transaction-not-found");
+    redirectWithFeedback(redirectTab, "warning", "No encontramos el movimiento que intentas eliminar.");
   }
 
   await prisma.$transaction(async (tx) => {
@@ -276,11 +291,12 @@ export async function deleteTransactionAction(formData: FormData) {
     });
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", `Movimiento eliminado: ${existingTransaction.description}.`);
 }
 
 export async function createDebtAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "debts");
   const requestedType = requiredString(formData.get("type")) as DebtType;
   const rawInitialAmount = parseAmount(formData.get("initialAmount"));
   const currentAmount = parseAmount(formData.get("currentAmount")) || rawInitialAmount;
@@ -322,11 +338,12 @@ export async function createDebtAction(formData: FormData) {
     initialAmount
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", `Deuda creada: ${requiredString(formData.get("name"))}.`);
 }
 
 export async function updateDebtAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "debts");
   const debtId = requiredString(formData.get("debtId"));
   const requestedType = requiredString(formData.get("type")) as DebtType;
   const rawInitialAmount = parseAmount(formData.get("initialAmount"));
@@ -364,11 +381,12 @@ export async function updateDebtAction(formData: FormData) {
     }
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", `Deuda actualizada: ${requiredString(formData.get("name"))}.`);
 }
 
 export async function deleteDebtAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "debts");
   const debtId = requiredString(formData.get("debtId"));
   const debt = await prisma.debt.findFirst({
     where: { id: debtId, userId: user.id },
@@ -376,7 +394,7 @@ export async function deleteDebtAction(formData: FormData) {
   });
 
   if (!debt) {
-    redirect("/?error=debt-not-found");
+    redirectWithFeedback(redirectTab, "warning", "No encontramos la deuda que intentas eliminar.");
   }
 
   await prisma.$transaction(async (tx) => {
@@ -399,11 +417,12 @@ export async function deleteDebtAction(formData: FormData) {
     });
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", `Deuda eliminada: ${debt.name}.`);
 }
 
 export async function updateDebtPlanningAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "debts");
   const debtId = requiredString(formData.get("debtId"));
   const monthlyPayment = parseAmount(formData.get("monthlyPayment"));
   const minimumPaymentAmount = parseAmount(formData.get("minimumPaymentAmount"));
@@ -416,11 +435,17 @@ export async function updateDebtPlanningAction(formData: FormData) {
     }
   });
 
-  revalidatePath("/");
+  const debt = await prisma.debt.findFirst({
+    where: { id: debtId, userId: user.id },
+    select: { name: true }
+  });
+
+  redirectWithFeedback(redirectTab, "success", `Planeación actualizada para ${debt?.name ?? "la deuda"}.`);
 }
 
 export async function closeCreditCardStatementAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "cards");
   const debtId = requiredString(formData.get("debtId"));
   const statementDateRaw = requiredString(formData.get("statementDate"));
   const paymentDueDateRaw = requiredString(formData.get("paymentDueDate"));
@@ -431,7 +456,7 @@ export async function closeCreditCardStatementAction(formData: FormData) {
   const providedPurchaseCount = Number(formData.get("purchaseCount") || 0);
 
   if (!statementDateRaw) {
-    redirect("/?error=statement-date-required");
+    redirectWithFeedback(redirectTab, "warning", "Indica la fecha del corte que deseas cerrar.");
   }
 
   const debt = await prisma.debt.findFirst({
@@ -452,7 +477,7 @@ export async function closeCreditCardStatementAction(formData: FormData) {
   });
 
   if (!debt) {
-    redirect("/?error=credit-card-not-found");
+    redirectWithFeedback(redirectTab, "warning", "No encontramos la tarjeta que intentas cerrar.");
   }
 
   const statementDate = new Date(statementDateRaw);
@@ -529,11 +554,12 @@ export async function closeCreditCardStatementAction(formData: FormData) {
     projectedPayment: snapshotProjectedPayment
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", `Corte guardado para ${debt.name}.`);
 }
 
 export async function updateCreditCardPurchaseInstallmentsAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "cards");
   const transactionIds = formData
     .getAll("transactionIds")
     .map((value) => String(value))
@@ -541,8 +567,7 @@ export async function updateCreditCardPurchaseInstallmentsAction(formData: FormD
   const installmentCount = Number(formData.get("installmentCount") || 0);
 
   if (!transactionIds.length || installmentCount <= 0) {
-    revalidatePath("/");
-    return;
+    redirectWithFeedback(redirectTab, "warning", "Selecciona al menos una compra y define un número de cuotas válido.");
   }
 
   await prisma.transaction.updateMany({
@@ -556,11 +581,16 @@ export async function updateCreditCardPurchaseInstallmentsAction(formData: FormD
     }
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(
+    redirectTab,
+    "success",
+    `Cuotas actualizadas para ${transactionIds.length} compra(s).`
+  );
 }
 
 export async function updateCreditCardPurchaseAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "cards");
   const transactionId = requiredString(formData.get("transactionId"));
   const description = requiredString(formData.get("description"));
   const amount = parseAmount(formData.get("amount"));
@@ -579,7 +609,7 @@ export async function updateCreditCardPurchaseAction(formData: FormData) {
   });
 
   if (!existingTransaction) {
-    redirect("/?error=credit-card-transaction-not-found");
+    redirectWithFeedback(redirectTab, "warning", "No encontramos la compra de tarjeta que intentas editar.");
   }
 
   const targetDebt = await prisma.debt.findFirst({
@@ -591,7 +621,7 @@ export async function updateCreditCardPurchaseAction(formData: FormData) {
   });
 
   if (!targetDebt) {
-    redirect("/?error=credit-card-not-found");
+    redirectWithFeedback(redirectTab, "warning", "No encontramos la tarjeta seleccionada para la compra.");
   }
 
   const purchaseCycle = getCreditCardPurchaseCycle(
@@ -649,16 +679,17 @@ export async function updateCreditCardPurchaseAction(formData: FormData) {
     }
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", `Compra actualizada: ${description}.`);
 }
 
 export async function updateBillingCycleAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "overview");
   const cycleStartDate = new Date(requiredString(formData.get("billingCycleReferenceStart")));
   const cycleEndDate = new Date(requiredString(formData.get("billingCycleReferenceEnd")));
 
   if (Number.isNaN(cycleStartDate.getTime()) || Number.isNaN(cycleEndDate.getTime()) || cycleStartDate >= cycleEndDate) {
-    redirect("/?error=invalid-cycle-range");
+    redirectWithFeedback(redirectTab, "warning", "El ciclo debe tener una fecha de inicio anterior a la fecha final.");
   }
 
   await prisma.user.update({
@@ -671,11 +702,12 @@ export async function updateBillingCycleAction(formData: FormData) {
     }
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", "Ciclo de facturación actualizado.");
 }
 
 export async function createReminderAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "reminders");
   const amount = parseAmount(formData.get("amount"));
   const type = requiredString(formData.get("type")) as "PAYMENT" | "ALARM";
   const dueDate = new Date(requiredString(formData.get("dueDate")));
@@ -707,11 +739,12 @@ export async function createReminderAction(formData: FormData) {
     notifyWhatsApp: checked(formData.get("notifyWhatsApp"))
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", `Recordatorio creado: ${requiredString(formData.get("title"))}.`);
 }
 
 export async function updateReminderAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "reminders");
   const reminderId = requiredString(formData.get("reminderId"));
   const amount = parseAmount(formData.get("amount"));
   const type = requiredString(formData.get("type")) as "PAYMENT" | "ALARM";
@@ -736,11 +769,12 @@ export async function updateReminderAction(formData: FormData) {
     }
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", `Recordatorio actualizado: ${requiredString(formData.get("title"))}.`);
 }
 
 export async function toggleReminderCompletionAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "reminders");
   const reminderId = requiredString(formData.get("reminderId"));
   const nextState = requiredString(formData.get("nextState")) === "true";
 
@@ -753,22 +787,28 @@ export async function toggleReminderCompletionAction(formData: FormData) {
     }
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(
+    redirectTab,
+    "success",
+    nextState ? "Recordatorio marcado como completado." : "Recordatorio vuelto a pendiente."
+  );
 }
 
 export async function deleteReminderAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "reminders");
   const reminderId = requiredString(formData.get("reminderId"));
 
   await prisma.reminder.deleteMany({
     where: { id: reminderId, userId: user.id }
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", "Recordatorio eliminado.");
 }
 
 export async function createDebtPaymentAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "debts");
   const debtId = requiredString(formData.get("debtId"));
   const amount = parseAmount(formData.get("amount"));
   const paidAt = new Date(requiredString(formData.get("paidAt")));
@@ -778,7 +818,7 @@ export async function createDebtPaymentAction(formData: FormData) {
   });
 
   if (!debt) {
-    redirect("/?error=debt-not-found");
+    redirectWithFeedback(redirectTab, "warning", "No encontramos la deuda a la que quieres aplicar el pago.");
   }
 
   const paymentSplit = splitDebtPayment(
@@ -840,11 +880,12 @@ export async function createDebtPaymentAction(formData: FormData) {
     paidAt: paidAt.toISOString()
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", `Pago registrado para ${debt.name}.`);
 }
 
 export async function updateDebtPaymentAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "debts");
   const paymentId = requiredString(formData.get("paymentId"));
   const debtId = requiredString(formData.get("debtId"));
   const amount = parseAmount(formData.get("amount"));
@@ -856,12 +897,12 @@ export async function updateDebtPaymentAction(formData: FormData) {
   });
 
   if (!debt) {
-    redirect("/?error=debt-not-found");
+    redirectWithFeedback(redirectTab, "warning", "No encontramos la deuda del pago que intentas editar.");
   }
 
   const existingPayment = debt.payments.find((payment) => payment.id === paymentId);
   if (!existingPayment) {
-    redirect("/?error=debt-payment-not-found");
+    redirectWithFeedback(redirectTab, "warning", "No encontramos el pago que intentas editar.");
   }
 
   const restoredAmount = debt.currentAmount.toNumber() + existingPayment.principalAmount.toNumber();
@@ -926,11 +967,12 @@ export async function updateDebtPaymentAction(formData: FormData) {
     }
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", `Pago actualizado para ${debt.name}.`);
 }
 
 export async function deleteDebtPaymentAction(formData: FormData) {
   const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "debts");
   const paymentId = requiredString(formData.get("paymentId"));
   const debtId = requiredString(formData.get("debtId"));
 
@@ -940,12 +982,12 @@ export async function deleteDebtPaymentAction(formData: FormData) {
   });
 
   if (!debt) {
-    redirect("/?error=debt-not-found");
+    redirectWithFeedback(redirectTab, "warning", "No encontramos la deuda del pago que intentas eliminar.");
   }
 
   const existingPayment = debt.payments.find((payment) => payment.id === paymentId);
   if (!existingPayment) {
-    redirect("/?error=debt-payment-not-found");
+    redirectWithFeedback(redirectTab, "warning", "No encontramos el pago que intentas eliminar.");
   }
 
   await prisma.$transaction(async (tx) => {
@@ -978,7 +1020,7 @@ export async function deleteDebtPaymentAction(formData: FormData) {
     }
   });
 
-  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", `Pago eliminado de ${debt.name}.`);
 }
 
 export async function createApiTokenAction(formData: FormData) {

@@ -1,7 +1,7 @@
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { deleteTransactionAction, updateTransactionAction } from "@/app/actions";
 import { formatDateInput, transactionTypeOptions } from "@/lib/serializers";
-import { formatCurrency, formatDate, paymentMethodLabel } from "@/lib/utils";
+import { categoryLabel, formatCurrency, formatDate, paymentMethodLabel } from "@/lib/utils";
 
 type Transaction = {
   id: string;
@@ -18,7 +18,13 @@ type Transaction = {
   transactionAt: string | Date;
 };
 
-export function TransactionCard({ transaction }: { transaction: Transaction }) {
+export function TransactionCard({
+  transaction,
+  redirectTab = "transactions"
+}: {
+  transaction: Transaction;
+  redirectTab?: string;
+}) {
   const isCreditCard = transaction.paymentMethod === "CREDIT_CARD";
 
   return (
@@ -27,7 +33,7 @@ export function TransactionCard({ transaction }: { transaction: Transaction }) {
         <div>
           <h3>{transaction.description}</h3>
           <p className="meta">
-            {transaction.category} · {paymentMethodLabel(transaction.paymentMethod)} ·{" "}
+            {categoryLabel(transaction.category)} · {paymentMethodLabel(transaction.paymentMethod)} ·{" "}
             {formatDate(transaction.transactionAt)}
             {transaction.installmentCount ? ` · ${transaction.installmentCount} cuota(s)` : ""}
           </p>
@@ -48,6 +54,7 @@ export function TransactionCard({ transaction }: { transaction: Transaction }) {
         <details className="inline-editor">
           <summary className="action-summary-button">Editar</summary>
           <form action={updateTransactionAction} className="form-grid compact-form inline-form">
+            <input type="hidden" name="redirectTab" value={redirectTab} />
             <input type="hidden" name="transactionId" value={transaction.id} />
             <input type="hidden" name="paymentMethod" value={transaction.paymentMethod} />
             <input type="hidden" name="creditCardDebtName" value={transaction.creditCardDebt?.name ?? ""} />
@@ -101,17 +108,30 @@ export function TransactionCard({ transaction }: { transaction: Transaction }) {
               </label>
             ) : null}
 
-            <button type="submit">Guardar movimiento</button>
+            <ConfirmSubmitButton
+              idleLabel="Guardar"
+              pendingLabel="Guardando..."
+              confirmTitle={`Vas a actualizar el movimiento ${transaction.description}.`}
+              summaryFields={[
+                { name: "description", label: "Descripción" },
+                { name: "amount", label: "Valor" },
+                { name: "type", label: "Tipo" },
+                { name: "category", label: "Categoría" },
+                { name: "transactionAt", label: "Fecha" }
+              ]}
+            />
           </form>
         </details>
 
         <form action={deleteTransactionAction}>
+          <input type="hidden" name="redirectTab" value={redirectTab} />
           <input type="hidden" name="transactionId" value={transaction.id} />
           <ConfirmSubmitButton
             className="ghost-button destructive-button"
             idleLabel="Eliminar"
             pendingLabel="Eliminando..."
-            confirmMessage="¿Seguro que quieres eliminar este movimiento?"
+            confirmTitle={`Vas a eliminar el movimiento ${transaction.description}.`}
+            confirmDescription="Si pertenece a una tarjeta, también se revertirá su impacto sobre la deuda."
           />
         </form>
       </div>

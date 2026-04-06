@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatCurrency, formatDate, paymentMethodLabel } from "@/lib/utils";
+import { categoryLabel, formatCurrency, formatDate, paymentMethodLabel } from "@/lib/utils";
 
 type BreakdownItem = {
   label: string;
@@ -102,7 +102,10 @@ export function AnalysisPanel({ analytics }: { analytics: AnalysisData }) {
 
   const expenseTransactions = filteredTransactions.filter((transaction) => transaction.type === "EXPENSE");
   const incomeTransactions = filteredTransactions.filter((transaction) => transaction.type === "INCOME");
-  const categoryBreakdown = buildClientBreakdown(expenseTransactions, (transaction) => transaction.category);
+  const categoryBreakdown = buildClientBreakdown(
+    expenseTransactions,
+    (transaction) => categoryLabel(transaction.category)
+  );
   const paymentBreakdown = buildClientBreakdown(
     expenseTransactions,
     (transaction) => paymentMethodLabel(transaction.paymentMethod)
@@ -156,7 +159,7 @@ export function AnalysisPanel({ analytics }: { analytics: AnalysisData }) {
               <option value="ALL">Todas</option>
               {categories.map((category) => (
                 <option key={category} value={category}>
-                  {category}
+                  {categoryLabel(category)}
                 </option>
               ))}
             </select>
@@ -272,7 +275,7 @@ export function AnalysisPanel({ analytics }: { analytics: AnalysisData }) {
                 <div>
                   <strong>{item.description}</strong>
                   <p className="meta">
-                    {item.category} · {paymentMethodLabel(item.paymentMethod)} · {formatDate(item.transactionAt)}
+                    {categoryLabel(item.category)} · {paymentMethodLabel(item.paymentMethod)} · {formatDate(item.transactionAt)}
                   </p>
                 </div>
                 <strong>{formatCurrency(item.amount)}</strong>

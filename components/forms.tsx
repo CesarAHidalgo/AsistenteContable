@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DebtType, PaymentMethod, ReminderType, TransactionType } from "@prisma/client";
 import {
   createApiTokenAction,
@@ -24,7 +25,7 @@ import {
   paymentMethodOptions,
   transactionTypeOptions
 } from "@/lib/serializers";
-import { debtTypeLabel, formatCurrency, formatDate, formatDateTime, paymentMethodLabel } from "@/lib/utils";
+import { categoryLabel, debtTypeLabel, formatCurrency, formatDate, formatDateTime, paymentMethodLabel } from "@/lib/utils";
 
 const categories = [
   "Nomina",
@@ -42,9 +43,34 @@ const categories = [
   "Otros"
 ];
 
+function CategorySelect({
+  name,
+  defaultValue,
+  required = false
+}: {
+  name: string;
+  defaultValue?: string;
+  required?: boolean;
+}) {
+  return (
+    <select name={name} defaultValue={defaultValue ?? ""} required={required}>
+      <option value="" disabled>
+        Selecciona una categoría
+      </option>
+      {categories.map((category) => (
+        <option key={category} value={category}>
+          {categoryLabel(category)}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function TransactionForm({
+  redirectTab,
   creditCardDebts
 }: {
+  redirectTab: string;
   creditCardDebts: Array<{
     id: string;
     name: string;
@@ -68,6 +94,7 @@ export function TransactionForm({
 
   return (
     <form action={createTransactionAction} className="form-grid">
+      <input type="hidden" name="redirectTab" value={redirectTab} />
       <FormLegend />
 
       <FieldLabel label="Tipo" required>
@@ -89,12 +116,7 @@ export function TransactionForm({
       </FieldLabel>
 
       <FieldLabel label="Categoria" required>
-        <input name="category" list="transaction-categories" required />
-        <datalist id="transaction-categories">
-          {categories.map((category) => (
-            <option key={category} value={category} />
-          ))}
-        </datalist>
+        <CategorySelect name="category" required />
       </FieldLabel>
 
       <FieldLabel label="Metodo de pago" required>
@@ -189,12 +211,25 @@ export function TransactionForm({
         />
       </FieldLabel>
 
-      <button type="submit">Guardar movimiento</button>
+      <ConfirmSubmitButton
+        idleLabel="Guardar movimiento"
+        pendingLabel="Guardando..."
+        confirmTitle="Vas a crear un movimiento nuevo."
+        confirmDescription="Revisa el resumen antes de guardarlo."
+        summaryFields={[
+          { name: "type", label: "Tipo" },
+          { name: "description", label: "Descripción" },
+          { name: "amount", label: "Valor" },
+          { name: "category", label: "Categoría" },
+          { name: "paymentMethod", label: "Método de pago" },
+          { name: "transactionAt", label: "Fecha" }
+        ]}
+      />
     </form>
   );
 }
 
-export function DebtForm() {
+export function DebtForm({ redirectTab }: { redirectTab: string }) {
   const [debtType, setDebtType] = useState<DebtType>("FIXED_INSTALLMENT");
   const isFixed = debtType === "FIXED_INSTALLMENT";
   const isRevolving = debtType === "REVOLVING_CREDIT";
@@ -211,6 +246,7 @@ export function DebtForm() {
 
   return (
     <form action={createDebtAction} className="form-grid">
+      <input type="hidden" name="redirectTab" value={redirectTab} />
       <FormLegend />
 
       <FieldLabel label="Tipo de deuda" required>
@@ -348,20 +384,36 @@ export function DebtForm() {
         </>
       ) : null}
 
-      <button type="submit">Crear deuda</button>
+      <ConfirmSubmitButton
+        idleLabel="Crear deuda"
+        pendingLabel="Creando..."
+        confirmTitle="Vas a registrar una deuda nueva."
+        confirmDescription="Confirma que el saldo, tasa y condiciones estén correctos."
+        summaryFields={[
+          { name: "type", label: "Tipo de deuda" },
+          { name: "name", label: "Producto" },
+          { name: "initialAmount", label: "Saldo inicial" },
+          { name: "currentAmount", label: "Saldo actual" },
+          { name: "monthlyPayment", label: "Pago mensual/base" },
+          { name: "dueDayOfMonth", label: "Día de pago" }
+        ]}
+      />
     </form>
   );
 }
 
 export function BillingCycleForm({
+  redirectTab,
   billingCycleReferenceStart,
   billingCycleReferenceEnd
 }: {
+  redirectTab: string;
   billingCycleReferenceStart: string;
   billingCycleReferenceEnd: string;
 }) {
   return (
     <form action={updateBillingCycleAction} className="form-grid compact-form">
+      <input type="hidden" name="redirectTab" value={redirectTab} />
       <FormLegend />
 
       <FieldLabel label="Fecha exacta de inicio" required>
@@ -382,7 +434,15 @@ export function BillingCycleForm({
         />
       </FieldLabel>
 
-      <button type="submit">Actualizar ciclo</button>
+      <ConfirmSubmitButton
+        idleLabel="Actualizar ciclo"
+        pendingLabel="Actualizando..."
+        confirmTitle="Vas a cambiar el ciclo de facturación."
+        summaryFields={[
+          { name: "billingCycleReferenceStart", label: "Fecha de inicio" },
+          { name: "billingCycleReferenceEnd", label: "Fecha de fin" }
+        ]}
+      />
     </form>
   );
 }
@@ -468,12 +528,15 @@ export function ReminderForm() {
 }
 
 export function DebtPaymentForm({
+  redirectTab,
   debts
 }: {
+  redirectTab: string;
   debts: Array<{ id: string; name: string; currentAmount: number }>;
 }) {
   return (
     <form action={createDebtPaymentAction} className="form-grid">
+      <input type="hidden" name="redirectTab" value={redirectTab} />
       <FormLegend />
 
       <FieldLabel label="Deuda" required>
@@ -496,14 +559,26 @@ export function DebtPaymentForm({
         <input name="paidAt" type="date" defaultValue={formatDateInput(new Date())} required />
       </FieldLabel>
 
-      <button type="submit">Aplicar pago</button>
+      <ConfirmSubmitButton
+        idleLabel="Aplicar pago"
+        pendingLabel="Aplicando..."
+        confirmTitle="Vas a registrar un pago sobre una deuda."
+        confirmDescription="La app actualizará el saldo y dejará el movimiento asociado."
+        summaryFields={[
+          { name: "debtId", label: "Deuda" },
+          { name: "amount", label: "Valor pagado" },
+          { name: "paidAt", label: "Fecha" }
+        ]}
+      />
     </form>
   );
 }
 
 export function DebtManagementPanel({
+  redirectTab,
   debts
 }: {
+  redirectTab: string;
   debts: Array<{
     id: string;
     name: string;
@@ -553,6 +628,7 @@ export function DebtManagementPanel({
             <details className="inline-editor">
               <summary>Editar deuda</summary>
               <form action={updateDebtAction} className="form-grid compact-form inline-form">
+                <input type="hidden" name="redirectTab" value={redirectTab} />
                 <input type="hidden" name="debtId" value={debt.id} />
                 <FieldLabel label="Tipo" required>
                   <select name="type" defaultValue={debt.type}>
@@ -636,20 +712,36 @@ export function DebtManagementPanel({
                     <option value="false">Entran en este mismo corte</option>
                   </select>
                 </FieldLabel>
-                <button type="submit">Guardar deuda</button>
+                <ConfirmSubmitButton
+                  idleLabel="Guardar deuda"
+                  pendingLabel="Guardando..."
+                  confirmTitle={`Vas a actualizar la deuda ${debt.name}.`}
+                  confirmDescription="Revisa el resumen antes de guardar los cambios."
+                  summaryFields={[
+                    { name: "name", label: "Nombre" },
+                    { name: "currentAmount", label: "Saldo actual" },
+                    { name: "monthlyPayment", label: "Pago mensual/base" },
+                    { name: "minimumPaymentAmount", label: "Pago mínimo" }
+                  ]}
+                />
               </form>
             </details>
 
             <details className="inline-editor">
               <summary>Eliminar deuda</summary>
               <form action={deleteDebtAction} className="form-grid compact-form inline-form">
+                <input type="hidden" name="redirectTab" value={redirectTab} />
                 <input type="hidden" name="debtId" value={debt.id} />
                 <p className="meta">
                   Esto elimina la deuda y sus pagos asociados. Los movimientos historicos se conservan.
                 </p>
-                <button type="submit" className="ghost-button destructive-button">
-                  Confirmar eliminacion
-                </button>
+                <ConfirmSubmitButton
+                  className="ghost-button destructive-button"
+                  idleLabel="Eliminar deuda"
+                  pendingLabel="Eliminando..."
+                  confirmTitle={`Vas a eliminar la deuda ${debt.name}.`}
+                  confirmDescription="También se eliminarán sus pagos asociados."
+                />
               </form>
             </details>
 
@@ -671,6 +763,7 @@ export function DebtManagementPanel({
 
                     <div className="statement-purchase-body">
                       <form action={updateDebtPaymentAction} className="form-grid compact-form inline-form">
+                        <input type="hidden" name="redirectTab" value={redirectTab} />
                         <input type="hidden" name="paymentId" value={payment.id} />
                         <input type="hidden" name="debtId" value={debt.id} />
                         <FieldLabel label="Valor pagado" required>
@@ -684,15 +777,28 @@ export function DebtManagementPanel({
                             required
                           />
                         </FieldLabel>
-                        <button type="submit">Guardar pago</button>
+                        <ConfirmSubmitButton
+                          idleLabel="Guardar pago"
+                          pendingLabel="Guardando..."
+                          confirmTitle={`Vas a actualizar un pago de ${debt.name}.`}
+                          summaryFields={[
+                            { name: "amount", label: "Valor pagado" },
+                            { name: "paidAt", label: "Fecha de pago" }
+                          ]}
+                        />
                       </form>
 
                       <form action={deleteDebtPaymentAction} className="form-grid compact-form inline-form">
+                        <input type="hidden" name="redirectTab" value={redirectTab} />
                         <input type="hidden" name="paymentId" value={payment.id} />
                         <input type="hidden" name="debtId" value={debt.id} />
-                        <button type="submit" className="ghost-button destructive-button">
-                          Eliminar pago
-                        </button>
+                        <ConfirmSubmitButton
+                          className="ghost-button destructive-button"
+                          idleLabel="Eliminar pago"
+                          pendingLabel="Eliminando..."
+                          confirmTitle={`Vas a eliminar un pago de ${debt.name}.`}
+                          confirmDescription="Esta acción revertirá el capital aplicado a la deuda."
+                        />
                       </form>
                     </div>
                   </details>
@@ -735,7 +841,7 @@ export function TransactionManagementPanel({
               <div>
                 <strong>{transaction.description}</strong>
                 <p className="meta">
-                  {transaction.category} · {paymentMethodLabel(transaction.paymentMethod)} · {formatDate(transaction.transactionAt)}
+                  {categoryLabel(transaction.category)} · {paymentMethodLabel(transaction.paymentMethod)} · {formatDate(transaction.transactionAt)}
                   {transaction.installmentCount ? ` · ${transaction.installmentCount} cuota(s)` : ""}
                 </p>
                 {isCreditCard && transaction.creditCardDebt ? (
@@ -774,7 +880,7 @@ export function TransactionManagementPanel({
                   </FieldLabel>
 
                   <FieldLabel label="Categoria" required>
-                    <input name="category" defaultValue={transaction.category} required />
+                    <CategorySelect name="category" defaultValue={transaction.category} required />
                   </FieldLabel>
 
                   <FieldLabel label="Fecha" required>
