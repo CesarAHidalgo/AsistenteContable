@@ -20,22 +20,22 @@ import { TransactionCard } from "@/components/transaction-card";
 import { IdleSessionManager } from "@/components/idle-session-manager";
 import { requireUser } from "@/lib/auth";
 import { getDashboardData } from "@/lib/data";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { categoryLabel, formatCurrency, formatDate } from "@/lib/utils";
 
 const tabs = [
-  { id: "overview", label: "Resumen", href: "/?tab=overview" },
-  { id: "transactions", label: "Movimientos", href: "/?tab=transactions" },
-  { id: "analysis", label: "Análisis", href: "/?tab=analysis" },
-  { id: "debts", label: "Deudas y tarjetas", href: "/?tab=debts" },
-  { id: "cards", label: "Extractos TC", href: "/?tab=cards" },
-  { id: "simulation", label: "Simulación", href: "/?tab=simulation" },
-  { id: "reminders", label: "Recordatorios", href: "/?tab=reminders" }
+  { id: "overview", label: "🏠 Resumen", href: "/?tab=overview" },
+  { id: "transactions", label: "💸 Movimientos", href: "/?tab=transactions" },
+  { id: "analysis", label: "📈 Análisis", href: "/?tab=analysis" },
+  { id: "debts", label: "🏦 Deudas y tarjetas", href: "/?tab=debts" },
+  { id: "cards", label: "💳 Extractos TC", href: "/?tab=cards" },
+  { id: "simulation", label: "🧮 Simulación", href: "/?tab=simulation" },
+  { id: "reminders", label: "⏰ Recordatorios", href: "/?tab=reminders" }
 ] as const;
 
 export default async function Home({
   searchParams
 }: {
-  searchParams?: Promise<{ tab?: string }>;
+  searchParams?: Promise<{ tab?: string; status?: string; message?: string }>;
 }) {
   const user = await requireUser();
   const data = await getDashboardData(user.id);
@@ -43,6 +43,12 @@ export default async function Home({
   const activeTab = tabs.some((tab) => tab.id === resolvedSearchParams.tab)
     ? resolvedSearchParams.tab ?? "overview"
     : "overview";
+  const feedbackMessage = resolvedSearchParams.message;
+  const feedbackStatus = resolvedSearchParams.status === "warning" || resolvedSearchParams.status === "error"
+    ? resolvedSearchParams.status
+    : resolvedSearchParams.status === "success"
+      ? "success"
+      : null;
   const snowballDebts = data.debts
     .filter((debt) => debt.currentAmount > 0)
     .slice()
@@ -73,7 +79,7 @@ export default async function Home({
       <section className="hero hero-dense">
         <div className="hero-copy">
           <p className="eyebrow">AsistenteContable</p>
-          <h1>Controla ingresos, gastos, cuotas y tarjetas sin perderte en una sola pantalla.</h1>
+          <h1>✨ Controla ingresos, gastos, cuotas y tarjetas con una vista más simple y clara.</h1>
           <div className="hero-actions">
             <Link href="/integraciones" className="inline-link">
               Integraciones
@@ -108,6 +114,19 @@ export default async function Home({
 
       <TabNav tabs={[...tabs]} activeTab={activeTab} />
 
+      {feedbackMessage && feedbackStatus ? (
+        <section className={`feedback-banner ${feedbackStatus}`}>
+          <strong>
+            {feedbackStatus === "success"
+              ? "✅ Acción completada"
+              : feedbackStatus === "warning"
+                ? "⚠️ Revisa esta acción"
+                : "❌ No se pudo completar"}
+          </strong>
+          <p>{feedbackMessage}</p>
+        </section>
+      ) : null}
+
       {activeTab === "overview" ? (
         <section className="grid-layout dashboard-grid">
           <SectionCard kicker="Panorama" title="Pulso del mes" className="panel-stretch">
@@ -126,6 +145,7 @@ export default async function Home({
               </div>
             </div>
             <BillingCycleForm
+              redirectTab="overview"
               billingCycleReferenceStart={data.summary.cycleReferenceStart}
               billingCycleReferenceEnd={data.summary.cycleReferenceEnd}
             />
@@ -137,7 +157,7 @@ export default async function Home({
                 <p className="empty-state">Aún no tienes movimientos guardados.</p>
               ) : (
                 data.transactions.slice(0, 3).map((transaction) => (
-                  <TransactionCard key={transaction.id} transaction={transaction} />
+                  <TransactionCard key={transaction.id} transaction={transaction} redirectTab="overview" />
                 ))
               )}
             </div>
@@ -160,6 +180,7 @@ export default async function Home({
         <section className="grid-layout dashboard-grid single-column">
           <SectionCard kicker="Registro" title="Nuevo movimiento" wide>
             <TransactionForm
+              redirectTab="transactions"
               creditCardDebts={data.debts
                 .filter((debt) => debt.type === "CREDIT_CARD")
                 .map((debt) => ({
@@ -181,7 +202,7 @@ export default async function Home({
                   <details key={category} className="item-card category-group">
                     <summary className="category-group-summary">
                       <div>
-                        <strong>{category}</strong>
+                        <strong>{categoryLabel(category)}</strong>
                         <p className="meta">{transactions.length} movimiento(s)</p>
                       </div>
                       <span className="chip neutral">
@@ -193,7 +214,11 @@ export default async function Home({
                     <div className="statement-purchase-body">
                       <div className="stack-list">
                         {transactions.map((transaction) => (
-                          <TransactionCard key={transaction.id} transaction={transaction} />
+                          <TransactionCard
+                            key={transaction.id}
+                            transaction={transaction}
+                            redirectTab="transactions"
+                          />
                         ))}
                       </div>
                     </div>
@@ -226,11 +251,11 @@ export default async function Home({
       {activeTab === "debts" ? (
         <section className="grid-layout dashboard-grid">
           <SectionCard kicker="Deudas" title="Nuevo crédito o tarjeta">
-            <DebtForm />
+            <DebtForm redirectTab="debts" />
           </SectionCard>
 
           <SectionCard kicker="Pagos" title="Registrar pago">
-            <DebtPaymentForm debts={data.debts} />
+            <DebtPaymentForm debts={data.debts} redirectTab="debts" />
           </SectionCard>
 
           <SectionCard kicker="Lectura" title="Cómo leer el estimado" wide>
@@ -254,7 +279,7 @@ export default async function Home({
           </SectionCard>
 
           <SectionCard kicker="Administración" title="Editar o eliminar deudas y pagos" wide>
-            <DebtManagementPanel debts={data.debts} />
+            <DebtManagementPanel debts={data.debts} redirectTab="debts" />
           </SectionCard>
         </section>
       ) : null}

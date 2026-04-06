@@ -2,6 +2,7 @@ import {
   updateCreditCardPurchaseInstallmentsAction,
   updateDebtPlanningAction
 } from "@/app/actions";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { debtTypeLabel, formatCurrency, formatDate, formatPercent } from "@/lib/utils";
 
 type Debt = {
@@ -258,6 +259,7 @@ export function DebtCard({ debt }: { debt: Debt }) {
         <div className="info-lines">
           {(debt.type === "CREDIT_CARD" || debt.type === "REVOLVING_CREDIT") ? (
             <form action={updateDebtPlanningAction} className="form-grid compact-form inline-form">
+              <input type="hidden" name="redirectTab" value="debts" />
               <input type="hidden" name="debtId" value={debt.id} />
               <label>
                 <span>{debt.type === "CREDIT_CARD" ? "Pago minimo base" : "Pago planeado"}</span>
@@ -283,7 +285,15 @@ export function DebtCard({ debt }: { debt: Debt }) {
                   defaultValue={debt.minimumPaymentAmount ?? ""}
                 />
               </label>
-              <button type="submit">Guardar planeacion</button>
+              <ConfirmSubmitButton
+                idleLabel="Guardar planeación"
+                pendingLabel="Guardando..."
+                confirmTitle={`Vas a actualizar la planeación de ${debt.name}.`}
+                summaryFields={[
+                  { name: "monthlyPayment", label: "Pago mensual/base" },
+                  { name: "minimumPaymentAmount", label: "Pago mínimo" }
+                ]}
+              />
             </form>
           ) : null}
           {debt.type === "CREDIT_CARD" && debt.cardPurchaseSummary ? (
@@ -368,6 +378,7 @@ export function DebtCard({ debt }: { debt: Debt }) {
                   action={updateCreditCardPurchaseInstallmentsAction}
                   className="form-grid compact-form inline-form"
                 >
+                  <input type="hidden" name="redirectTab" value="cards" />
                   <div className="stack-list">
                     {debt.cardPurchaseSummary.purchases.map((purchase) => (
                       <label key={purchase.id} className="analysis-list-row checkbox-row">
@@ -390,7 +401,12 @@ export function DebtCard({ debt }: { debt: Debt }) {
                     <span>Nuevas cuotas para las compras seleccionadas</span>
                     <input name="installmentCount" type="number" min="1" step="1" required />
                   </label>
-                  <button type="submit">Actualizar cuotas</button>
+                  <ConfirmSubmitButton
+                    idleLabel="Actualizar cuotas"
+                    pendingLabel="Actualizando..."
+                    confirmTitle="Vas a cambiar las cuotas de varias compras."
+                    summaryFields={[{ name: "installmentCount", label: "Nuevas cuotas" }]}
+                  />
                 </form>
                 <div className="stack-list">
                   {debt.cardPurchaseSummary.purchases.map((purchase) => (
@@ -405,6 +421,7 @@ export function DebtCard({ debt }: { debt: Debt }) {
                           action={updateCreditCardPurchaseInstallmentsAction}
                           className="form-grid compact-form inline-form"
                         >
+                          <input type="hidden" name="redirectTab" value="cards" />
                           <input type="hidden" name="transactionIds" value={purchase.id} />
                           <label>
                             <span>Número de cuotas</span>
@@ -417,7 +434,12 @@ export function DebtCard({ debt }: { debt: Debt }) {
                               required
                             />
                           </label>
-                          <button type="submit">Guardar compra</button>
+                          <ConfirmSubmitButton
+                            idleLabel="Guardar compra"
+                            pendingLabel="Guardando..."
+                            confirmTitle={`Vas a actualizar las cuotas de ${purchase.description}.`}
+                            summaryFields={[{ name: "installmentCount", label: "Número de cuotas" }]}
+                          />
                         </form>
                         <div className="stack-list">
                           {purchase.installments.slice(0, 6).map((installment) => (

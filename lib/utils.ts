@@ -47,6 +47,27 @@ export function paymentMethodLabel(value: string) {
   return labels[value] ?? value;
 }
 
+export function categoryLabel(value: string) {
+  const labels: Record<string, string> = {
+    Nomina: "💼 Nómina",
+    Vivienda: "🏠 Vivienda",
+    Servicios: "🧾 Servicios",
+    Mercado: "🛒 Mercado",
+    Restaurantes: "🍽️ Restaurantes",
+    Transporte: "🚌 Transporte",
+    Combustible: "⛽ Combustible",
+    Salud: "🩺 Salud",
+    Educacion: "📚 Educación",
+    Entretenimiento: "🎉 Entretenimiento",
+    Deudas: "💳 Deudas",
+    Ahorro: "🐷 Ahorro",
+    Otros: "🧩 Otros",
+    Tarjetas: "💳 Tarjetas"
+  };
+
+  return labels[value] ?? value;
+}
+
 export function debtTypeLabel(value: string) {
   const labels: Record<string, string> = {
     FIXED_INSTALLMENT: "Credito fijo",
