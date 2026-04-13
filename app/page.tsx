@@ -16,6 +16,8 @@ import { MetricCard } from "@/components/metric-card";
 import { ReminderCard } from "@/components/reminder-card";
 import { SectionCard } from "@/components/section-card";
 import { TabNav } from "@/components/tab-nav";
+import { CategoryBudgetPanel } from "@/components/category-budget-panel";
+import { OnboardingWelcomeCard } from "@/components/onboarding-card";
 import { TransactionCard } from "@/components/transaction-card";
 import { IdleSessionManager } from "@/components/idle-session-manager";
 import { requireUser } from "@/lib/auth";
@@ -153,6 +155,23 @@ export default async function Home({
 
       {activeTab === "overview" ? (
         <section className="grid-layout dashboard-grid">
+          {data.onboarding.showWelcomeCard ? (
+            <div className="panel-wide">
+              <OnboardingWelcomeCard />
+            </div>
+          ) : null}
+
+          <SectionCard
+            kicker="Presupuesto"
+            title="Metas por categoría (mes calendario)"
+            icon="🎯"
+            subtitle="Define un tope mensual por categoría y compáralo con el gasto del ciclo actual."
+            wide
+            className="panel-brand"
+          >
+            <CategoryBudgetPanel periodKey={data.budget.periodKey} rows={data.budget.rows} />
+          </SectionCard>
+
           <SectionCard kicker="Panorama" title="Pulso del mes" icon="🧭" subtitle="Una lectura rápida para saber cómo va el ciclo." className="panel-stretch panel-brand">
             <div className="stack-list">
               <div className="snapshot-card">
