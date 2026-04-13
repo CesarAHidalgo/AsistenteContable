@@ -1378,6 +1378,67 @@ button:disabled {
   }
 }
 
+.transactions-filter-form {
+  margin-bottom: 20px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.filter-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.recurring-stack {
+  display: grid;
+  gap: 20px;
+}
+
+.recurring-apply-form {
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px dashed rgba(13, 148, 136, 0.35);
+  background: rgba(13, 148, 136, 0.06);
+  display: grid;
+  gap: 10px;
+}
+
+.recurring-create-form {
+  margin-top: 4px;
+}
+
+.recurring-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.recurring-row-actions form {
+  margin: 0;
+}
+
 @media (max-width: 900px) {
   .hero,
   .grid-layout,
