@@ -1,3 +1,4 @@
+import type { Prisma, TransactionType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getNotificationChannelStatus } from "@/lib/reminder-notifications";
 import {
@@ -9,9 +10,60 @@ import {
 import { decimalToNumber } from "@/lib/serializers";
 import { monthPeriodKey } from "@/lib/month-period";
 
-export async function getDashboardData(userId: string) {
-  const budgetPeriodKey = monthPeriodKey();
+export type TransactionListFilterInput = {
+  q?: string;
+  from?: string;
+  to?: string;
+  category?: string;
+  type?: TransactionType | "";
+};
 
+function buildTransactionListWhere(
+  userId: string,
+  f?: TransactionListFilterInput
+): Prisma.TransactionWhereInput {
+  const and: Prisma.TransactionWhereInput[] = [{ userId }];
+  if (!f) {
+    return { AND: and };
+  }
+
+  if (f.type === "INCOME" || f.type === "EXPENSE") {
+    and.push({ type: f.type });
+  }
+  if (f.category?.trim()) {
+    and.push({ category: f.category.trim() });
+  }
+  if (f.from?.trim() || f.to?.trim()) {
+    const range: Prisma.DateTimeFilter = {};
+    if (f.from?.trim()) {
+      const d = new Date(f.from.trim());
+      d.setHours(0, 0, 0, 0);
+      range.gte = d;
+    }
+    if (f.to?.trim()) {
+      const d = new Date(f.to.trim());
+      d.setHours(23, 59, 59, 999);
+      range.lte = d;
+    }
+    and.push({ transactionAt: range });
+  }
+  if (f.q?.trim()) {
+    const q = f.q.trim();
+    and.push({
+      OR: [
+        { description: { contains: q, mode: "insensitive" } },
+        { category: { contains: q, mode: "insensitive" } }
+      ]
+    });
+  }
+  return { AND: and };
+}
+
+export async function getDashboardData(
+  userId: string,
+  options?: { transactionList?: TransactionListFilterInput }
+) {
+  const budgetPeriodKey = monthPeriodKey();
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: {
@@ -46,6 +98,8 @@ export async function getDashboardData(userId: string) {
     cycleTransactions,
     previousCycleTransactions,
     allTransactions,
+    transactionsFiltered,
+    recurringTemplates,
     debts,
     reminders,
     apiTokens,
@@ -102,6 +156,25 @@ export async function getDashboardData(userId: string) {
         }
       },
       orderBy: { transactionAt: "desc" }
+    }),
+    prisma.transaction.findMany({
+      where: buildTransactionListWhere(userId, options?.transactionList),
+      include: {
+        creditCardDebt: {
+          select: { name: true }
+        }
+      },
+      orderBy: { transactionAt: "desc" },
+      take: 300
+    }),
+    prisma.recurringTransaction.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        creditCardDebt: {
+          select: { id: true, name: true }
+        }
+      }
     }),
     prisma.debt.findMany({
       where: { userId },
@@ -267,6 +340,23 @@ export async function getDashboardData(userId: string) {
     transactions: transactions.map((item) => ({
       ...item,
       amount: item.amount.toNumber()
+    })),
+    transactionsList: transactionsFiltered.map((item) => ({
+      ...item,
+      amount: item.amount.toNumber()
+    })),
+    recurringTemplates: recurringTemplates.map((item) => ({
+      id: item.id,
+      description: item.description,
+      amount: item.amount.toNumber(),
+      type: item.type,
+      category: item.category,
+      paymentMethod: item.paymentMethod,
+      dayOfMonth: item.dayOfMonth,
+      isActive: item.isActive,
+      lastPeriodKey: item.lastPeriodKey,
+      creditCardDebtId: item.creditCardDebtId,
+      creditCardDebtName: item.creditCardDebt?.name ?? null
     })),
     debts: debts.map((item) => {
       const normalizedTransactions = item.transactions.map((transaction) => ({

@@ -6,8 +6,19 @@ import { redirect } from "next/navigation";
 import { DebtType, PaymentMethod, TransactionType } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
 import { generateOpaqueToken, hashPassword, hashToken } from "@/lib/crypto";
+import {
+  parseCsvLine,
+  parseTransactionImportRow,
+  TRANSACTION_CSV_HEADER
+} from "@/lib/csv-transactions";
 import { getCreditCardPurchaseCycle, splitDebtPayment } from "@/lib/finance";
 import { monthPeriodKey } from "@/lib/month-period";
+import {
+  assertValidRecurringInput,
+  currentPeriodKey,
+  shouldGenerateThisMonth,
+  transactionAtForMonth
+} from "@/lib/recurring";
 import { logInfo } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import {
@@ -1145,5 +1156,327 @@ export async function dispatchRemindersNowAction() {
     `/integraciones?message=${encodeURIComponent(
       `Despacho ejecutado. Evaluados: ${summary.evaluated}, enviados: ${summary.sent}, omitidos: ${summary.skipped}, fallidos: ${summary.failed}`
     )}&status=${summary.failed > 0 ? "warning" : "success"}`
+  );
+}
+
+export async function importTransactionsFromCsvAction(formData: FormData) {
+  const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "transactions");
+  const file = formData.get("csvFile");
+
+  if (!(file instanceof Blob) || file.size === 0) {
+    redirectWithFeedback(redirectTab, "warning", "Selecciona un archivo CSV generado desde esta aplicación.");
+  }
+
+  const text = await file.text();
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length < 2) {
+    redirectWithFeedback(redirectTab, "warning", "El archivo no contiene filas de datos.");
+  }
+
+  const headerCells = parseCsvLine(lines[0]!);
+  const expectedCells = TRANSACTION_CSV_HEADER.split(",");
+  if (headerCells[0] !== expectedCells[0]) {
+    redirectWithFeedback(
+      redirectTab,
+      "warning",
+      "La primera línea debe ser la cabecera del export (columna description, ...)."
+    );
+  }
+
+  const errors: string[] = [];
+  let imported = 0;
+  const maxRows = 500;
+
+  for (let i = 1; i < lines.length && imported < maxRows; i += 1) {
+    const cells = parseCsvLine(lines[i]!);
+    const parsed = parseTransactionImportRow(cells, i + 1);
+    if (!parsed.ok) {
+      errors.push(parsed.error);
+      continue;
+    }
+
+    const row = parsed.row;
+
+    try {
+      if (row.paymentMethod === PaymentMethod.CREDIT_CARD) {
+        if (!row.creditCardDebtName) {
+          errors.push(`Línea ${i + 1}: para tarjeta indica creditCardDebtName (nombre exacto de la tarjeta).`);
+          continue;
+        }
+
+        const debt = await prisma.debt.findFirst({
+          where: {
+            userId: user.id,
+            type: "CREDIT_CARD",
+            name: row.creditCardDebtName
+          }
+        });
+
+        if (!debt) {
+          errors.push(`Línea ${i + 1}: no hay tarjeta registrada con el nombre "${row.creditCardDebtName}".`);
+          continue;
+        }
+
+        const purchaseCycle = getCreditCardPurchaseCycle(
+          {
+            dueDayOfMonth: debt.dueDayOfMonth,
+            statementDayOfMonth: debt.statementDayOfMonth,
+            statementDayPurchasesToNextCycle: debt.statementDayPurchasesToNextCycle
+          },
+          row.transactionAt,
+          "CURRENT_STATEMENT"
+        );
+
+        await prisma.$transaction(async (tx) => {
+          await tx.transaction.create({
+            data: {
+              userId: user.id,
+              description: row.description,
+              amount: row.amount,
+              type: row.type,
+              category: row.category,
+              paymentMethod: PaymentMethod.CREDIT_CARD,
+              creditCardDebtId: debt.id,
+              creditCardCycleSelection: "CURRENT_STATEMENT",
+              statementDate: purchaseCycle?.statementDate ?? null,
+              paymentDueDate: purchaseCycle?.paymentDueDate ?? null,
+              transactionAt: row.transactionAt
+            }
+          });
+
+          if (row.type === TransactionType.EXPENSE) {
+            await tx.debt.update({
+              where: { id: debt.id },
+              data: {
+                currentAmount: debt.currentAmount.toNumber() + row.amount
+              }
+            });
+          }
+        });
+
+        imported += 1;
+      } else {
+        await prisma.transaction.create({
+          data: {
+            userId: user.id,
+            description: row.description,
+            amount: row.amount,
+            type: row.type,
+            category: row.category,
+            paymentMethod: row.paymentMethod,
+            transactionAt: row.transactionAt
+          }
+        });
+        imported += 1;
+      }
+    } catch {
+      errors.push(`Línea ${i + 1}: no se pudo guardar (revisa datos o duplicados).`);
+    }
+  }
+
+  logInfo("action.transactions.import_csv", {
+    userId: user.id,
+    imported,
+    errorCount: errors.length
+  });
+
+  revalidatePath("/");
+
+  const errSummary = errors.slice(0, 4).join(" ");
+  const message =
+    imported > 0
+      ? `Importados ${imported} movimiento(s).${errors.length ? ` Algunas filas omitidas: ${errSummary}` : ""}`
+      : `No se importó ninguna fila.${errors.length ? ` ${errSummary}` : ""}`;
+
+  redirectWithFeedback(redirectTab, imported > 0 ? "success" : "warning", message);
+}
+
+export async function createRecurringTransactionAction(formData: FormData) {
+  const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "transactions");
+  const description = requiredString(formData.get("description"));
+  const amount = parseAmount(formData.get("amount"));
+  const transactionType = requiredString(formData.get("type")) as TransactionType;
+  const category = requiredString(formData.get("category"));
+  const paymentMethod = requiredString(formData.get("paymentMethod")) as PaymentMethod;
+  const dayOfMonth = Number(formData.get("dayOfMonth") || 1);
+  const creditCardDebtId = requiredString(formData.get("creditCardDebtId")) || null;
+
+  const err = assertValidRecurringInput({
+    dayOfMonth,
+    amount,
+    type: transactionType,
+    paymentMethod,
+    creditCardDebtId
+  });
+  if (err) {
+    redirectWithFeedback(redirectTab, "warning", err);
+  }
+
+  if (paymentMethod === PaymentMethod.CREDIT_CARD && creditCardDebtId) {
+    const debt = await prisma.debt.findFirst({
+      where: { id: creditCardDebtId, userId: user.id, type: "CREDIT_CARD" }
+    });
+    if (!debt) {
+      redirectWithFeedback(redirectTab, "warning", "La tarjeta seleccionada no es válida.");
+    }
+  }
+
+  await prisma.recurringTransaction.create({
+    data: {
+      userId: user.id,
+      description,
+      amount,
+      type: transactionType,
+      category,
+      paymentMethod,
+      dayOfMonth,
+      creditCardDebtId: paymentMethod === PaymentMethod.CREDIT_CARD ? creditCardDebtId : null
+    }
+  });
+
+  logInfo("action.recurring.created", { userId: user.id, paymentMethod, dayOfMonth });
+  redirectWithFeedback(redirectTab, "success", `Recurrente guardado: ${description}.`);
+}
+
+export async function deleteRecurringTransactionAction(formData: FormData) {
+  const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "transactions");
+  const id = requiredString(formData.get("recurringId"));
+
+  await prisma.recurringTransaction.deleteMany({
+    where: { id, userId: user.id }
+  });
+
+  revalidatePath("/");
+  redirectWithFeedback(redirectTab, "success", "Recurrente eliminado.");
+}
+
+export async function toggleRecurringTransactionAction(formData: FormData) {
+  const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "transactions");
+  const id = requiredString(formData.get("recurringId"));
+  const nextActive = requiredString(formData.get("nextActive")) === "true";
+
+  await prisma.recurringTransaction.updateMany({
+    where: { id, userId: user.id },
+    data: { isActive: nextActive }
+  });
+
+  revalidatePath("/");
+  redirectWithFeedback(
+    redirectTab,
+    "success",
+    nextActive ? "Recurrente activado." : "Recurrente pausado."
+  );
+}
+
+export async function applyRecurringTransactionsAction(formData: FormData) {
+  const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "transactions");
+  const period = currentPeriodKey();
+  const now = new Date();
+  const templates = await prisma.recurringTransaction.findMany({
+    where: { userId: user.id, isActive: true }
+  });
+
+  let createdCount = 0;
+
+  for (const template of templates) {
+    if (template.lastPeriodKey === period) {
+      continue;
+    }
+    if (!shouldGenerateThisMonth(template.dayOfMonth, now)) {
+      continue;
+    }
+
+    const transactionAt = transactionAtForMonth(now.getFullYear(), now.getMonth(), template.dayOfMonth);
+
+    if (template.paymentMethod === PaymentMethod.CREDIT_CARD && template.creditCardDebtId) {
+      const debt = await prisma.debt.findFirst({
+        where: {
+          id: template.creditCardDebtId,
+          userId: user.id,
+          type: "CREDIT_CARD"
+        }
+      });
+      if (!debt) {
+        continue;
+      }
+
+      const purchaseCycle = getCreditCardPurchaseCycle(
+        {
+          dueDayOfMonth: debt.dueDayOfMonth,
+          statementDayOfMonth: debt.statementDayOfMonth,
+          statementDayPurchasesToNextCycle: debt.statementDayPurchasesToNextCycle
+        },
+        transactionAt,
+        "CURRENT_STATEMENT"
+      );
+
+      const amt = template.amount.toNumber();
+      await prisma.$transaction(async (tx) => {
+        await tx.transaction.create({
+          data: {
+            userId: user.id,
+            description: template.description,
+            amount: amt,
+            type: template.type,
+            category: template.category,
+            paymentMethod: PaymentMethod.CREDIT_CARD,
+            creditCardDebtId: template.creditCardDebtId,
+            creditCardCycleSelection: "CURRENT_STATEMENT",
+            statementDate: purchaseCycle?.statementDate ?? null,
+            paymentDueDate: purchaseCycle?.paymentDueDate ?? null,
+            transactionAt
+          }
+        });
+
+        if (template.type === TransactionType.EXPENSE) {
+          await tx.debt.update({
+            where: { id: debt.id },
+            data: {
+              currentAmount: debt.currentAmount.toNumber() + amt
+            }
+          });
+        }
+
+        await tx.recurringTransaction.update({
+          where: { id: template.id },
+          data: { lastPeriodKey: period }
+        });
+      });
+      createdCount += 1;
+    } else {
+      await prisma.$transaction([
+        prisma.transaction.create({
+          data: {
+            userId: user.id,
+            description: template.description,
+            amount: template.amount,
+            type: template.type,
+            category: template.category,
+            paymentMethod: template.paymentMethod,
+            transactionAt
+          }
+        }),
+        prisma.recurringTransaction.update({
+          where: { id: template.id },
+          data: { lastPeriodKey: period }
+        })
+      ]);
+      createdCount += 1;
+    }
+  }
+
+  logInfo("action.recurring.apply", { userId: user.id, period, createdCount });
+
+  redirectWithFeedback(
+    redirectTab,
+    createdCount > 0 ? "success" : "warning",
+    createdCount > 0
+      ? `Se registraron ${createdCount} movimiento(s) recurrente(s) para el periodo ${period}.`
+      : "No hay recurrentes listos para este mes: revisa el día configurado o si ya se aplicaron."
   );
 }

@@ -70,6 +70,7 @@ model User {
   debts        Debt[]
   reminders    Reminder[]
   pushSubscriptions PushSubscription[]
+  recurringTransactions RecurringTransaction[]
 }
 
 model CategoryBudget {
@@ -146,6 +147,7 @@ model Debt {
   payments       DebtPayment[]
   transactions   Transaction[]
   statementSnapshots CreditCardStatementSnapshot[]
+  recurringTemplates RecurringTransaction[]
   userId         String
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -207,6 +209,26 @@ model PushSubscription {
   updatedAt DateTime @updatedAt
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RecurringTransaction {
+  id               String            @id @default(cuid())
+  description      String
+  amount           Decimal           @db.Decimal(12, 2)
+  type             TransactionType
+  category         String
+  paymentMethod    PaymentMethod
+  creditCardDebtId String?
+  dayOfMonth       Int
+  isActive         Boolean           @default(true)
+  lastPeriodKey    String?
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creditCardDebt   Debt?             @relation(fields: [creditCardDebtId], references: [id], onDelete: SetNull)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([userId, isActive])
 }
 
 model CreditCardStatementSnapshot {
