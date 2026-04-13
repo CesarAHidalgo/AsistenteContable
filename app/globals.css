@@ -1378,6 +1378,29 @@ button:disabled {
   }
 }
 
+.csv-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.csv-import-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.csv-import-form input[type="file"] {
+  padding: 10px;
+  font-size: 0.88rem;
+}
+
+.code-hint code {
+  font-size: 0.72rem;
+  word-break: break-all;
+}
+
 .transactions-filter-form {
   margin-bottom: 20px;
   padding: 16px;
