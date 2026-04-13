@@ -3,20 +3,28 @@ export function SectionCard({
   title,
   children,
   wide = false,
-  className = ""
+  className = "",
+  icon,
+  subtitle
 }: {
   kicker: string;
   title: string;
   children: React.ReactNode;
   wide?: boolean;
   className?: string;
+  icon?: string;
+  subtitle?: string;
 }) {
   return (
     <article className={`panel ${wide ? "panel-wide" : ""} ${className}`.trim()}>
       <div className="panel-header">
         <div>
-          <p className="section-kicker">{kicker}</p>
+          <p className="section-kicker">
+            {icon ? <span className="section-icon" aria-hidden="true">{icon}</span> : null}
+            {kicker}
+          </p>
           <h2>{title}</h2>
+          {subtitle ? <p className="panel-subtitle">{subtitle}</p> : null}
         </div>
       </div>
       {children}

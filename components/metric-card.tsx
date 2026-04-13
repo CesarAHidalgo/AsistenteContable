@@ -1,16 +1,22 @@
 type MetricCardProps = {
   label: string;
   value: string;
-  accent?: "primary" | "danger";
+  accent?: "primary" | "danger" | "neutral";
+  icon?: string;
+  helper?: string;
 };
 
-export function MetricCard({ label, value, accent }: MetricCardProps) {
+export function MetricCard({ label, value, accent, icon, helper }: MetricCardProps) {
   const className = accent ? `metric-card ${accent}` : "metric-card";
 
   return (
     <article className={className}>
-      <span>{label}</span>
+      <div className="metric-card-head">
+        <span>{label}</span>
+        {icon ? <i aria-hidden="true">{icon}</i> : null}
+      </div>
       <strong>{value}</strong>
+      {helper ? <small>{helper}</small> : null}
     </article>
   );
 }

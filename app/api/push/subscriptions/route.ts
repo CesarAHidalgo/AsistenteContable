@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
+import { parseApiJson, pushSubscriptionPostSchema } from "@/lib/api-v1-schemas";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
@@ -7,27 +8,25 @@ export async function POST(request: Request) {
   if (!user) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const body = await request.json();
 
-  const endpoint = String(body?.endpoint ?? "").trim();
-  const p256dhKey = String(body?.keys?.p256dh ?? "").trim();
-  const authKey = String(body?.keys?.auth ?? "").trim();
-
-  if (!endpoint || !p256dhKey || !authKey) {
-    return Response.json({ error: "Invalid subscription" }, { status: 400 });
+  const parsed = await parseApiJson(request, pushSubscriptionPostSchema);
+  if (parsed instanceof Response) {
+    return parsed;
   }
+
+  const { endpoint, keys } = parsed;
 
   await prisma.pushSubscription.upsert({
     where: { endpoint },
     update: {
-      p256dhKey,
-      authKey,
+      p256dhKey: keys.p256dh,
+      authKey: keys.auth,
       userId: user.id
     },
     create: {
       endpoint,
-      p256dhKey,
-      authKey,
+      p256dhKey: keys.p256dh,
+      authKey: keys.auth,
       userId: user.id
     }
   });

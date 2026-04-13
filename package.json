@@ -18,7 +18,8 @@
     "nodemailer": "^7.0.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "resend": "^6.10.0"
+    "resend": "^6.10.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^22.13.17",

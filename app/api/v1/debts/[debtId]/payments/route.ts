@@ -1,4 +1,6 @@
+import { DebtType } from "@prisma/client";
 import { authenticateApiRequest } from "@/lib/auth";
+import { debtPaymentPostSchema, parseApiJson } from "@/lib/api-v1-schemas";
 import { splitDebtPayment } from "@/lib/finance";
 import { prisma } from "@/lib/prisma";
 
@@ -12,10 +14,13 @@ export async function POST(
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const parsed = await parseApiJson(request, debtPaymentPostSchema);
+  if (parsed instanceof Response) {
+    return parsed;
+  }
+
   const { debtId } = await params;
-  const body = await request.json();
-  const amount = Number(body.amount ?? 0);
-  const paidAt = new Date(String(body.paidAt ?? new Date().toISOString()));
+  const { amount, paidAt } = parsed;
 
   const debt = await prisma.debt.findFirst({
     where: { id: debtId, userId: user.id }
@@ -41,29 +46,41 @@ export async function POST(
     amount
   );
 
+  const effectivePaymentSplit =
+    debt.type === DebtType.CREDIT_CARD
+      ? {
+          interestAmount: 0,
+          principalAmount: Math.min(debt.currentAmount.toNumber(), amount)
+        }
+      : paymentSplit;
+
+  const paymentDescription =
+    debt.type === DebtType.CREDIT_CARD ? `Pago TC: ${debt.name}` : `Abono a deuda: ${debt.name}`;
+  const category = debt.type === DebtType.CREDIT_CARD ? "Tarjetas" : "Deudas";
+
   const [, updatedDebt] = await prisma.$transaction([
     prisma.debtPayment.create({
       data: {
         debtId,
         amount,
-        principalAmount: paymentSplit.principalAmount,
-        interestAmount: paymentSplit.interestAmount,
+        principalAmount: effectivePaymentSplit.principalAmount,
+        interestAmount: effectivePaymentSplit.interestAmount,
         paidAt
       }
     }),
     prisma.debt.update({
       where: { id: debtId },
       data: {
-        currentAmount: Math.max(0, debt.currentAmount.toNumber() - paymentSplit.principalAmount)
+        currentAmount: Math.max(0, debt.currentAmount.toNumber() - effectivePaymentSplit.principalAmount)
       }
     }),
     prisma.transaction.create({
       data: {
         userId: user.id,
-        description: `Abono a deuda: ${debt.name}`,
+        description: paymentDescription,
         amount,
         type: "EXPENSE",
-        category: "Deudas",
+        category,
         paymentMethod: "BANK_TRANSFER",
         transactionAt: paidAt
       }
