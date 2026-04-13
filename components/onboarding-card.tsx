@@ -1,5 +1,6 @@
-import { completeOnboardingAction } from "@/app/actions";
+import type { Route } from "next";
 import Link from "next/link";
+import { completeOnboardingAction } from "@/app/actions";
 import { PendingSubmitButton } from "@/components/pending-submit-button";
 
 export function OnboardingWelcomeCard() {
@@ -28,10 +29,10 @@ export function OnboardingWelcomeCard() {
         </li>
       </ol>
       <div className="hero-actions">
-        <Link href="/?tab=transactions" className="inline-link">
+        <Link href={"/movimientos" as Route} className="inline-link" prefetch={false}>
           Ir a movimientos
         </Link>
-        <Link href="/?tab=debts" className="inline-link">
+        <Link href={"/deudas" as Route} className="inline-link" prefetch={false}>
           Ir a deudas
         </Link>
         <form action={completeOnboardingAction}>

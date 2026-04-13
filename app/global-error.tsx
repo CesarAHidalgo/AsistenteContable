@@ -17,7 +17,7 @@ export default function GlobalError({
   return (
     <html lang="es">
       <body>
-        <main className="login-shell">
+        <main id="main-content" className="login-shell" tabIndex={-1}>
           <section className="auth-card">
             <p className="eyebrow">Error</p>
             <h1>Ocurrio un problema inesperado.</h1>

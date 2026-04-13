@@ -158,7 +158,7 @@ export function RecurringTransactionsPanel({
         ) : (
           <input type="hidden" name="creditCardDebtId" value="" />
         )}
-        <button type="submit">Guardar recurrente</button>
+        <PendingSubmitButton idleLabel="Guardar recurrente" pendingLabel="Guardando…" />
       </form>
 
       <div className="stack-list">
@@ -192,9 +192,11 @@ export function RecurringTransactionsPanel({
                     <input type="hidden" name="redirectTab" value="transactions" />
                     <input type="hidden" name="recurringId" value={row.id} />
                     <input type="hidden" name="nextActive" value={String(!row.isActive)} />
-                    <button type="submit" className="ghost-button">
-                      {row.isActive ? "Pausar" : "Activar"}
-                    </button>
+                    <PendingSubmitButton
+                      className="ghost-button"
+                      idleLabel={row.isActive ? "Pausar" : "Activar"}
+                      pendingLabel="Actualizando…"
+                    />
                   </form>
                   <form action={deleteRecurringTransactionAction}>
                     <input type="hidden" name="redirectTab" value="transactions" />

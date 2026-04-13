@@ -3,6 +3,17 @@ import { withSentryConfig } from "@sentry/nextjs";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typedRoutes: true,
+  async rewrites() {
+    return [
+      { source: "/resumen", destination: "/?tab=overview" },
+      { source: "/movimientos", destination: "/?tab=transactions" },
+      { source: "/analisis", destination: "/?tab=analysis" },
+      { source: "/deudas", destination: "/?tab=debts" },
+      { source: "/tarjetas", destination: "/?tab=cards" },
+      { source: "/simulacion", destination: "/?tab=simulation" },
+      { source: "/recordatorios", destination: "/?tab=reminders" }
+    ];
+  },
   async headers() {
     return [
       {

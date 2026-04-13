@@ -19,6 +19,7 @@ import {
   shouldGenerateThisMonth,
   transactionAtForMonth
 } from "@/lib/recurring";
+import { dashboardUrlWithFeedback } from "@/lib/dashboard-redirect";
 import { logInfo } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import {
@@ -58,7 +59,7 @@ function redirectWithFeedback(
   message: string
 ): never {
   revalidatePath("/");
-  redirect(`/?tab=${tab}&status=${status}&message=${encodeURIComponent(message)}`);
+  redirect(dashboardUrlWithFeedback(tab, status, message) as Route);
 }
 
 export async function registerAction(formData: FormData) {

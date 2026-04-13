@@ -3,6 +3,7 @@ import {
   toggleReminderCompletionAction,
   updateReminderAction
 } from "@/app/actions";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { formatDateInput } from "@/lib/serializers";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 
@@ -65,9 +66,13 @@ export function ReminderCard({ reminder }: { reminder: Reminder }) {
         <form action={toggleReminderCompletionAction}>
           <input type="hidden" name="reminderId" value={reminder.id} />
           <input type="hidden" name="nextState" value={String(!reminder.isCompleted)} />
-          <button type="submit" className="ghost-button">
-            {reminder.isCompleted ? "Marcar pendiente" : isPayment ? "Registrar pago" : "Marcar completado"}
-          </button>
+          <PendingSubmitButton
+            className="ghost-button"
+            idleLabel={
+              reminder.isCompleted ? "Marcar pendiente" : isPayment ? "Registrar pago" : "Marcar completado"
+            }
+            pendingLabel="Actualizando…"
+          />
         </form>
 
         <details className="inline-editor">
@@ -145,7 +150,7 @@ export function ReminderCard({ reminder }: { reminder: Reminder }) {
               <span>Notificar por WhatsApp</span>
             </label>
 
-            <button type="submit">Guardar cambios</button>
+            <PendingSubmitButton idleLabel="Guardar cambios" pendingLabel="Guardando…" />
           </form>
         </details>
 
@@ -156,9 +161,11 @@ export function ReminderCard({ reminder }: { reminder: Reminder }) {
             <p className="meta">
               Esto elimina el recordatorio de forma permanente.
             </p>
-            <button type="submit" className="ghost-button destructive-button">
-              Confirmar eliminacion
-            </button>
+            <PendingSubmitButton
+              className="ghost-button destructive-button"
+              idleLabel="Confirmar eliminación"
+              pendingLabel="Eliminando…"
+            />
           </form>
         </details>
       </div>
