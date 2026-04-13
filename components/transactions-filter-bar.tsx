@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 
 const categories = [
   "",
@@ -31,8 +33,7 @@ export function TransactionsFilterBar({
   };
 }) {
   return (
-    <form method="get" action="/" className="transactions-filter-form">
-      <input type="hidden" name="tab" value="transactions" />
+    <form method="get" action="/movimientos" className="transactions-filter-form">
       <div className="filter-grid">
         <label>
           <span className="filter-label">Buscar</span>
@@ -74,8 +75,8 @@ export function TransactionsFilterBar({
         </label>
       </div>
       <div className="filter-actions">
-        <button type="submit">Aplicar filtros</button>
-        <Link href="/?tab=transactions" className="inline-link">
+        <PendingSubmitButton idleLabel="Aplicar filtros" pendingLabel="Aplicando…" />
+        <Link href={"/movimientos" as Route} className="inline-link" prefetch={false}>
           Limpiar
         </Link>
       </div>

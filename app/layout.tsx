@@ -20,7 +20,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={plusJakarta.variable}>
-      <body className={plusJakarta.className}>{children}</body>
+      <body className={plusJakarta.className}>
+        <a href="#main-content" className="skip-link">
+          Ir al contenido
+        </a>
+        {children}
+      </body>
     </html>
   );
 }

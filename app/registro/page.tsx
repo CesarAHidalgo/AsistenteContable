@@ -18,7 +18,7 @@ export default async function RegisterPage({
   const params = await searchParams;
 
   return (
-    <main className="login-shell">
+    <main id="main-content" className="login-shell" tabIndex={-1}>
       <AuthCard
         kicker="Empezar"
         title="Crea tu cuenta"

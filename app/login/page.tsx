@@ -19,7 +19,7 @@ export default async function LoginPage({
   const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
   return (
-    <main className="login-shell">
+    <main id="main-content" className="login-shell" tabIndex={-1}>
       <AuthCard
         kicker="Bienvenido"
         title="Inicia sesión"

@@ -15,7 +15,9 @@ import {
 import { MetricCard } from "@/components/metric-card";
 import { ReminderCard } from "@/components/reminder-card";
 import { SectionCard } from "@/components/section-card";
-import { TabNav } from "@/components/tab-nav";
+import { FeedbackScrollIntoView } from "@/components/feedback-scroll-into-view";
+import { TabNav, DashboardSecondaryNav } from "@/components/tab-nav";
+import { TransactionsSectionNav } from "@/components/transactions-section-nav";
 import { CategoryBudgetPanel } from "@/components/category-budget-panel";
 import { OnboardingWelcomeCard } from "@/components/onboarding-card";
 import { CsvTransactionsTools } from "@/components/csv-transactions-tools";
@@ -24,18 +26,9 @@ import { TransactionsFilterBar } from "@/components/transactions-filter-bar";
 import { TransactionCard } from "@/components/transaction-card";
 import { IdleSessionManager } from "@/components/idle-session-manager";
 import { requireUser } from "@/lib/auth";
+import { dashboardTabs } from "@/lib/dashboard-tabs";
 import { getDashboardData } from "@/lib/data";
 import { categoryLabel, formatCurrency, formatDate } from "@/lib/utils";
-
-const tabs = [
-  { id: "overview", label: "Resumen", href: "/?tab=overview" },
-  { id: "transactions", label: "Movimientos", href: "/?tab=transactions" },
-  { id: "analysis", label: "Análisis", href: "/?tab=analysis" },
-  { id: "debts", label: "Deudas", href: "/?tab=debts" },
-  { id: "cards", label: "Tarjetas", href: "/?tab=cards" },
-  { id: "simulation", label: "Simulación", href: "/?tab=simulation" },
-  { id: "reminders", label: "Recordatorios", href: "/?tab=reminders" }
-] as const;
 
 export default async function Home({
   searchParams
@@ -69,9 +62,11 @@ export default async function Home({
       type: txFilters.type === "INCOME" || txFilters.type === "EXPENSE" ? txFilters.type : ""
     }
   });
-  const activeTab = tabs.some((tab) => tab.id === resolvedSearchParams.tab)
+  const activeTab = dashboardTabs.some((tab) => tab.id === resolvedSearchParams.tab)
     ? resolvedSearchParams.tab ?? "overview"
     : "overview";
+  const activeTabMeta = dashboardTabs.find((t) => t.id === activeTab);
+  const activeTabLabel = activeTabMeta?.label ?? "Panel";
   const feedbackMessage = resolvedSearchParams.message;
   const feedbackStatus = resolvedSearchParams.status === "warning" || resolvedSearchParams.status === "error"
     ? resolvedSearchParams.status
@@ -103,72 +98,114 @@ export default async function Home({
   ).sort((left, right) => right[1].length - left[1].length);
 
   return (
-    <main className="page-shell">
+    <main id="main-content" className="page-shell" tabIndex={-1}>
       <IdleSessionManager />
-      <section className="hero hero-dense">
-        <div className="hero-copy">
-          <div className="brand-stamp">
-            <span className="brand-stamp-mark" aria-hidden="true">
-              🧾
-            </span>
-            <span className="brand-stamp-copy">
-              <strong>AsistenteContable</strong>
-              <small>Tu dinero, ordenado sin complicarte</small>
-            </span>
-          </div>
-          <p className="eyebrow">Panel principal</p>
-          <h1>Ingresos, gastos y tarjetas en un solo lugar</h1>
-          <p className="hero-lead">
-            Registra movimientos al momento, revisa deudas y cortes con textos claros y sin hojas de cálculo.
-          </p>
-          <div className="hero-actions">
-            <Link href="/integraciones" className="inline-link">
-              Integraciones
-            </Link>
-            <LogoutButton />
-          </div>
-          <div className="alert-row">
-            <div className="alert-chip success">
-              Ciclo actual: {formatDate(data.summary.cycleStartLabel)} a {formatDate(data.summary.cycleEndLabel)}
+      {activeTab === "overview" ? (
+        <section className="hero hero-dense">
+          <div className="hero-copy">
+            <div className="brand-stamp">
+              <span className="brand-stamp-mark" aria-hidden="true">
+                🧾
+              </span>
+              <span className="brand-stamp-copy">
+                <strong>AsistenteContable</strong>
+                <small>Tu dinero, ordenado sin complicarte</small>
+              </span>
             </div>
-            {data.alerts.highSpend ? (
-              <div className="alert-chip warning">Tus gastos del mes ya van altos frente a tus ingresos.</div>
-            ) : null}
-            {data.alerts.noIncome ? (
-              <div className="alert-chip warning">Este mes tienes gastos sin ingresos registrados.</div>
-            ) : null}
-            {data.alerts.dueSoonCount > 0 ? (
+            <p className="eyebrow">Panel principal</p>
+            <h1>Ingresos, gastos y tarjetas en un solo lugar</h1>
+            <p className="hero-lead">
+              Registra movimientos al momento, revisa deudas y cortes con textos claros y sin hojas de cálculo.
+            </p>
+            <div className="hero-actions">
+              <Link href="/integraciones" className="inline-link" prefetch={false}>
+                Integraciones
+              </Link>
+              <LogoutButton />
+            </div>
+            <div className="alert-row">
               <div className="alert-chip success">
-                {data.alerts.dueSoonCount} recordatorio(s) vencen en los próximos 5 días.
+                Ciclo actual: {formatDate(data.summary.cycleStartLabel)} a {formatDate(data.summary.cycleEndLabel)}
               </div>
-            ) : null}
+              {data.alerts.highSpend ? (
+                <div className="alert-chip warning">Tus gastos del mes ya van altos frente a tus ingresos.</div>
+              ) : null}
+              {data.alerts.noIncome ? (
+                <div className="alert-chip warning">Este mes tienes gastos sin ingresos registrados.</div>
+              ) : null}
+              {data.alerts.dueSoonCount > 0 ? (
+                <div className="alert-chip success">
+                  {data.alerts.dueSoonCount} recordatorio(s) vencen en los próximos 5 días.
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
 
-        <div className="hero-summary hero-summary-grid">
-          <MetricCard
-            label="Balance del mes"
-            value={formatCurrency(data.summary.balance)}
-            accent="primary"
-            icon="📊"
-            helper={data.summary.balance >= 0 ? "Mes bajo control" : "Mes apretado"}
-          />
-          <MetricCard label="Ingresos" value={formatCurrency(data.summary.totalIncome)} icon="💰" helper="Entradas del ciclo" />
-          <MetricCard
-            label="Gastos"
-            value={formatCurrency(data.summary.totalExpenses)}
-            accent="danger"
-            icon="💸"
-            helper="Salidas del ciclo"
-          />
-          <MetricCard label="Deuda pendiente" value={formatCurrency(data.summary.totalDebt)} accent="neutral" icon="🏦" helper="Saldo vivo total" />
-        </div>
-      </section>
+          <div className="hero-summary hero-summary-grid">
+            <MetricCard
+              label="Balance del mes"
+              value={formatCurrency(data.summary.balance)}
+              accent="primary"
+              icon="📊"
+              helper={data.summary.balance >= 0 ? "Mes bajo control" : "Mes apretado"}
+            />
+            <MetricCard label="Ingresos" value={formatCurrency(data.summary.totalIncome)} icon="💰" helper="Entradas del ciclo" />
+            <MetricCard
+              label="Gastos"
+              value={formatCurrency(data.summary.totalExpenses)}
+              accent="danger"
+              icon="💸"
+              helper="Salidas del ciclo"
+            />
+            <MetricCard label="Deuda pendiente" value={formatCurrency(data.summary.totalDebt)} accent="neutral" icon="🏦" helper="Saldo vivo total" />
+          </div>
+        </section>
+      ) : (
+        <section className="hero hero-minimal">
+          <div className="hero-copy hero-copy-tight">
+            <div className="hero-minimal-top">
+              <div className="brand-stamp brand-stamp-compact">
+                <span className="brand-stamp-mark" aria-hidden="true">
+                  🧾
+                </span>
+                <span className="brand-stamp-copy">
+                  <strong>AsistenteContable</strong>
+                </span>
+              </div>
+              <div className="hero-actions hero-actions-inline">
+                <Link href="/integraciones" className="inline-link" prefetch={false}>
+                  Integraciones
+                </Link>
+                <LogoutButton />
+              </div>
+            </div>
+            <p className="eyebrow">{activeTabLabel}</p>
+            <h1>Seguimiento de {activeTabLabel.toLowerCase()}</h1>
+            <p className="hero-lead hero-lead-tight">
+              Ciclo {formatDate(data.summary.cycleStartLabel)} — {formatDate(data.summary.cycleEndLabel)}
+            </p>
+            <div className="alert-row alert-row-tight">
+              {data.alerts.highSpend ? (
+                <div className="alert-chip warning">Gastos altos frente a ingresos.</div>
+              ) : null}
+              {data.alerts.noIncome ? (
+                <div className="alert-chip warning">Gastos sin ingresos registrados.</div>
+              ) : null}
+              {data.alerts.dueSoonCount > 0 ? (
+                <div className="alert-chip success">{data.alerts.dueSoonCount} recordatorio(s) próximos.</div>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      )}
 
-      <TabNav tabs={[...tabs]} activeTab={activeTab} />
+      <TabNav tabs={dashboardTabs} activeTab={activeTab} />
+      <DashboardSecondaryNav />
+
+      <FeedbackScrollIntoView active={Boolean(feedbackMessage && feedbackStatus)} />
 
       {feedbackMessage && feedbackStatus ? (
-        <section className={`feedback-banner ${feedbackStatus}`}>
+        <section id="feedback-banner" className={`feedback-banner ${feedbackStatus}`} tabIndex={-1}>
           <strong>
             {feedbackStatus === "success"
               ? "✅ Acción completada"
@@ -248,7 +285,16 @@ export default async function Home({
 
       {activeTab === "transactions" ? (
         <section className="grid-layout dashboard-grid single-column">
-          <SectionCard kicker="Registro" title="Nuevo movimiento" icon="✍️" subtitle="Captura un gasto o ingreso sin salir del flujo." wide className="panel-brand">
+          <TransactionsSectionNav />
+          <SectionCard
+            id="tx-nuevo"
+            kicker="Registro"
+            title="Nuevo movimiento"
+            icon="✍️"
+            subtitle="Captura un gasto o ingreso sin salir del flujo."
+            wide
+            className="panel-brand scroll-panel-target"
+          >
             <TransactionForm
               redirectTab="transactions"
               creditCardDebts={data.debts
@@ -263,7 +309,15 @@ export default async function Home({
             />
           </SectionCard>
 
-          <SectionCard kicker="Movimientos" title="Historial por categoría" icon="🗂️" subtitle="Explora tus movimientos agrupados para leerlos de un vistazo." wide>
+          <SectionCard
+            id="tx-historial"
+            kicker="Movimientos"
+            title="Historial por categoría"
+            icon="🗂️"
+            subtitle="Explora tus movimientos agrupados para leerlos de un vistazo."
+            wide
+            className="scroll-panel-target"
+          >
             <TransactionsFilterBar
               defaults={{
                 txQ: resolvedSearchParams.txQ,
@@ -308,19 +362,23 @@ export default async function Home({
           </SectionCard>
 
           <SectionCard
+            id="tx-csv"
             kicker="Datos"
             title="Exportar e importar movimientos (CSV)"
             subtitle="Mismo formato de columnas para respaldo o cargas masivas desde hoja de cálculo."
             wide
+            className="scroll-panel-target"
           >
             <CsvTransactionsTools />
           </SectionCard>
 
           <SectionCard
+            id="tx-recurrentes"
             kicker="Recurrencia"
             title="Movimientos que se repiten cada mes"
             subtitle="Ideal para suscripciones, arriendo o ingresos fijos. Aplica una vez al mes cuando corresponda."
             wide
+            className="scroll-panel-target"
           >
             <RecurringTransactionsPanel
               items={data.recurringTemplates}
