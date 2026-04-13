@@ -12,6 +12,7 @@ import {
   TRANSACTION_CSV_HEADER
 } from "@/lib/csv-transactions";
 import { getCreditCardPurchaseCycle, splitDebtPayment } from "@/lib/finance";
+import { monthPeriodKey } from "@/lib/month-period";
 import {
   assertValidRecurringInput,
   currentPeriodKey,
@@ -1090,6 +1091,56 @@ export async function sendTestEmailAction() {
   });
 
   redirect(`/integraciones?message=${encodeURIComponent(result.message)}&status=${result.ok ? "success" : "warning"}`);
+}
+
+export async function completeOnboardingAction(formData: FormData) {
+  const user = await requireUser();
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { onboardingCompletedAt: new Date() }
+  });
+  revalidatePath("/");
+  const redirectTab = getRedirectTab(formData, "overview");
+  redirectWithFeedback(redirectTab, "success", "Perfecto. Ya puedes usar el panel con calma.");
+}
+
+export async function upsertCategoryBudgetAction(formData: FormData) {
+  const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "overview");
+  const category = requiredString(formData.get("category"));
+  const amount = parseAmount(formData.get("amount"));
+  const periodKey = requiredString(formData.get("periodKey")) || monthPeriodKey();
+
+  if (!category) {
+    redirectWithFeedback(redirectTab, "warning", "Selecciona una categoría.");
+  }
+
+  if (amount <= 0) {
+    await prisma.categoryBudget.deleteMany({
+      where: { userId: user.id, category, periodKey }
+    });
+    redirectWithFeedback(redirectTab, "success", "Presupuesto quitado para esa categoría.");
+  }
+
+  await prisma.categoryBudget.upsert({
+    where: {
+      userId_category_periodKey: {
+        userId: user.id,
+        category,
+        periodKey
+      }
+    },
+    create: {
+      userId: user.id,
+      category,
+      periodKey,
+      amount
+    },
+    update: { amount }
+  });
+
+  logInfo("action.budget.upsert", { userId: user.id, category, periodKey, amount });
+  redirectWithFeedback(redirectTab, "success", `Presupuesto guardado (${periodKey}): ${category}.`);
 }
 
 export async function dispatchRemindersNowAction() {
