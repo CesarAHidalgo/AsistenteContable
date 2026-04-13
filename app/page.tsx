@@ -17,6 +17,8 @@ import { ReminderCard } from "@/components/reminder-card";
 import { SectionCard } from "@/components/section-card";
 import { TabNav } from "@/components/tab-nav";
 import { CsvTransactionsTools } from "@/components/csv-transactions-tools";
+import { RecurringTransactionsPanel } from "@/components/recurring-transactions-panel";
+import { TransactionsFilterBar } from "@/components/transactions-filter-bar";
 import { TransactionCard } from "@/components/transaction-card";
 import { IdleSessionManager } from "@/components/idle-session-manager";
 import { requireUser } from "@/lib/auth";
@@ -36,11 +38,35 @@ const tabs = [
 export default async function Home({
   searchParams
 }: {
-  searchParams?: Promise<{ tab?: string; status?: string; message?: string }>;
+  searchParams?: Promise<{
+    tab?: string;
+    status?: string;
+    message?: string;
+    txQ?: string;
+    txFrom?: string;
+    txTo?: string;
+    txCat?: string;
+    txType?: string;
+  }>;
 }) {
   const user = await requireUser();
-  const data = await getDashboardData(user.id);
   const resolvedSearchParams = searchParams ? await searchParams : {};
+  const txFilters = {
+    q: resolvedSearchParams.txQ,
+    from: resolvedSearchParams.txFrom,
+    to: resolvedSearchParams.txTo,
+    category: resolvedSearchParams.txCat,
+    type: resolvedSearchParams.txType as "INCOME" | "EXPENSE" | "" | undefined
+  };
+  const data = await getDashboardData(user.id, {
+    transactionList: {
+      q: txFilters.q,
+      from: txFilters.from,
+      to: txFilters.to,
+      category: txFilters.category,
+      type: txFilters.type === "INCOME" || txFilters.type === "EXPENSE" ? txFilters.type : ""
+    }
+  });
   const activeTab = tabs.some((tab) => tab.id === resolvedSearchParams.tab)
     ? resolvedSearchParams.tab ?? "overview"
     : "overview";
@@ -63,14 +89,14 @@ export default async function Home({
       return leftPayoffMonths - rightPayoffMonths;
     });
   const transactionsByCategory = Array.from(
-    data.transactions.reduce(
+    data.transactionsList.reduce(
       (map, transaction) => {
         const bucket = map.get(transaction.category) ?? [];
         bucket.push(transaction);
         map.set(transaction.category, bucket);
         return map;
       },
-      new Map<string, typeof data.transactions>()
+      new Map<string, typeof data.transactionsList>()
     )
   ).sort((left, right) => right[1].length - left[1].length);
 
@@ -219,9 +245,18 @@ export default async function Home({
           </SectionCard>
 
           <SectionCard kicker="Movimientos" title="Historial por categoría" icon="🗂️" subtitle="Explora tus movimientos agrupados para leerlos de un vistazo." wide>
+            <TransactionsFilterBar
+              defaults={{
+                txQ: resolvedSearchParams.txQ,
+                txFrom: resolvedSearchParams.txFrom,
+                txTo: resolvedSearchParams.txTo,
+                txCat: resolvedSearchParams.txCat,
+                txType: resolvedSearchParams.txType
+              }}
+            />
             <div className="stack-list">
-              {data.transactions.length === 0 ? (
-                <p className="empty-state">Todavía no tienes movimientos guardados.</p>
+              {data.transactionsList.length === 0 ? (
+                <p className="empty-state">No hay movimientos con estos filtros. Prueba limpiar o ajustar fechas.</p>
               ) : (
                 transactionsByCategory.map(([category, transactions]) => (
                   <details key={category} className="item-card category-group">
@@ -260,6 +295,20 @@ export default async function Home({
             wide
           >
             <CsvTransactionsTools />
+          </SectionCard>
+
+          <SectionCard
+            kicker="Recurrencia"
+            title="Movimientos que se repiten cada mes"
+            subtitle="Ideal para suscripciones, arriendo o ingresos fijos. Aplica una vez al mes cuando corresponda."
+            wide
+          >
+            <RecurringTransactionsPanel
+              items={data.recurringTemplates}
+              creditCardDebts={data.debts
+                .filter((debt) => debt.type === "CREDIT_CARD")
+                .map((d) => ({ id: d.id, name: d.name }))}
+            />
           </SectionCard>
         </section>
       ) : null}
