@@ -16,6 +16,7 @@ import { MetricCard } from "@/components/metric-card";
 import { ReminderCard } from "@/components/reminder-card";
 import { SectionCard } from "@/components/section-card";
 import { TabNav } from "@/components/tab-nav";
+import { CsvTransactionsTools } from "@/components/csv-transactions-tools";
 import { TransactionCard } from "@/components/transaction-card";
 import { IdleSessionManager } from "@/components/idle-session-manager";
 import { requireUser } from "@/lib/auth";
@@ -252,6 +253,14 @@ export default async function Home({
             </div>
           </SectionCard>
 
+          <SectionCard
+            kicker="Datos"
+            title="Exportar e importar movimientos (CSV)"
+            subtitle="Mismo formato de columnas para respaldo o cargas masivas desde hoja de cálculo."
+            wide
+          >
+            <CsvTransactionsTools />
+          </SectionCard>
         </section>
       ) : null}
 

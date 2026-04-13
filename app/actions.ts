@@ -6,6 +6,11 @@ import { redirect } from "next/navigation";
 import { DebtType, PaymentMethod, TransactionType } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
 import { generateOpaqueToken, hashPassword, hashToken } from "@/lib/crypto";
+import {
+  parseCsvLine,
+  parseTransactionImportRow,
+  TRANSACTION_CSV_HEADER
+} from "@/lib/csv-transactions";
 import { getCreditCardPurchaseCycle, splitDebtPayment } from "@/lib/finance";
 import { logInfo } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
@@ -1095,4 +1100,137 @@ export async function dispatchRemindersNowAction() {
       `Despacho ejecutado. Evaluados: ${summary.evaluated}, enviados: ${summary.sent}, omitidos: ${summary.skipped}, fallidos: ${summary.failed}`
     )}&status=${summary.failed > 0 ? "warning" : "success"}`
   );
+}
+
+export async function importTransactionsFromCsvAction(formData: FormData) {
+  const user = await requireUser();
+  const redirectTab = getRedirectTab(formData, "transactions");
+  const file = formData.get("csvFile");
+
+  if (!(file instanceof Blob) || file.size === 0) {
+    redirectWithFeedback(redirectTab, "warning", "Selecciona un archivo CSV generado desde esta aplicación.");
+  }
+
+  const text = await file.text();
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length < 2) {
+    redirectWithFeedback(redirectTab, "warning", "El archivo no contiene filas de datos.");
+  }
+
+  const headerCells = parseCsvLine(lines[0]!);
+  const expectedCells = TRANSACTION_CSV_HEADER.split(",");
+  if (headerCells[0] !== expectedCells[0]) {
+    redirectWithFeedback(
+      redirectTab,
+      "warning",
+      "La primera línea debe ser la cabecera del export (columna description, ...)."
+    );
+  }
+
+  const errors: string[] = [];
+  let imported = 0;
+  const maxRows = 500;
+
+  for (let i = 1; i < lines.length && imported < maxRows; i += 1) {
+    const cells = parseCsvLine(lines[i]!);
+    const parsed = parseTransactionImportRow(cells, i + 1);
+    if (!parsed.ok) {
+      errors.push(parsed.error);
+      continue;
+    }
+
+    const row = parsed.row;
+
+    try {
+      if (row.paymentMethod === PaymentMethod.CREDIT_CARD) {
+        if (!row.creditCardDebtName) {
+          errors.push(`Línea ${i + 1}: para tarjeta indica creditCardDebtName (nombre exacto de la tarjeta).`);
+          continue;
+        }
+
+        const debt = await prisma.debt.findFirst({
+          where: {
+            userId: user.id,
+            type: "CREDIT_CARD",
+            name: row.creditCardDebtName
+          }
+        });
+
+        if (!debt) {
+          errors.push(`Línea ${i + 1}: no hay tarjeta registrada con el nombre "${row.creditCardDebtName}".`);
+          continue;
+        }
+
+        const purchaseCycle = getCreditCardPurchaseCycle(
+          {
+            dueDayOfMonth: debt.dueDayOfMonth,
+            statementDayOfMonth: debt.statementDayOfMonth,
+            statementDayPurchasesToNextCycle: debt.statementDayPurchasesToNextCycle
+          },
+          row.transactionAt,
+          "CURRENT_STATEMENT"
+        );
+
+        await prisma.$transaction(async (tx) => {
+          await tx.transaction.create({
+            data: {
+              userId: user.id,
+              description: row.description,
+              amount: row.amount,
+              type: row.type,
+              category: row.category,
+              paymentMethod: PaymentMethod.CREDIT_CARD,
+              creditCardDebtId: debt.id,
+              creditCardCycleSelection: "CURRENT_STATEMENT",
+              statementDate: purchaseCycle?.statementDate ?? null,
+              paymentDueDate: purchaseCycle?.paymentDueDate ?? null,
+              transactionAt: row.transactionAt
+            }
+          });
+
+          if (row.type === TransactionType.EXPENSE) {
+            await tx.debt.update({
+              where: { id: debt.id },
+              data: {
+                currentAmount: debt.currentAmount.toNumber() + row.amount
+              }
+            });
+          }
+        });
+
+        imported += 1;
+      } else {
+        await prisma.transaction.create({
+          data: {
+            userId: user.id,
+            description: row.description,
+            amount: row.amount,
+            type: row.type,
+            category: row.category,
+            paymentMethod: row.paymentMethod,
+            transactionAt: row.transactionAt
+          }
+        });
+        imported += 1;
+      }
+    } catch {
+      errors.push(`Línea ${i + 1}: no se pudo guardar (revisa datos o duplicados).`);
+    }
+  }
+
+  logInfo("action.transactions.import_csv", {
+    userId: user.id,
+    imported,
+    errorCount: errors.length
+  });
+
+  revalidatePath("/");
+
+  const errSummary = errors.slice(0, 4).join(" ");
+  const message =
+    imported > 0
+      ? `Importados ${imported} movimiento(s).${errors.length ? ` Algunas filas omitidas: ${errSummary}` : ""}`
+      : `No se importó ninguna fila.${errors.length ? ` ${errSummary}` : ""}`;
+
+  redirectWithFeedback(redirectTab, imported > 0 ? "success" : "warning", message);
 }
