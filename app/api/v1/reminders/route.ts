@@ -1,4 +1,5 @@
 import { authenticateApiRequest } from "@/lib/auth";
+import { parseApiJson, reminderPostSchema } from "@/lib/api-v1-schemas";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: Request) {
@@ -28,20 +29,26 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const type = String(body.type ?? "PAYMENT");
+  const parsed = await parseApiJson(request, reminderPostSchema);
+  if (parsed instanceof Response) {
+    return parsed;
+  }
+
+  const body = parsed;
+  const type = body.type === "ALARM" ? "ALARM" : "PAYMENT";
+
   const reminder = await prisma.reminder.create({
     data: {
       userId: user.id,
-      title: String(body.title ?? ""),
-      type: type === "ALARM" ? "ALARM" : "PAYMENT",
-      amount: body.amount ? Number(body.amount) : null,
-      dueDate: new Date(String(body.dueDate ?? new Date().toISOString())),
-      notificationAt: type === "ALARM" && body.notificationAt ? new Date(String(body.notificationAt)) : null,
-      notifyDaysBefore: type === "PAYMENT" ? Number(body.notifyDaysBefore ?? 5) : 0,
+      title: body.title,
+      type,
+      amount: body.amount ?? null,
+      dueDate: body.dueDate,
+      notificationAt: type === "ALARM" ? body.notificationAt : null,
+      notifyDaysBefore: type === "PAYMENT" ? body.notifyDaysBefore : 0,
       notifyEmail: body.notifyEmail !== false,
-      notifyPush: Boolean(body.notifyPush),
-      notifyWhatsApp: Boolean(body.notifyWhatsApp)
+      notifyPush: body.notifyPush === true,
+      notifyWhatsApp: body.notifyWhatsApp === true
     }
   });
 

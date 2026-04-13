@@ -6,11 +6,17 @@ services:
     ports:
       - "3000:3000"
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: "postgresql://postgres:postgres@db:5432/asistente_contable?schema=public"
+      NEXTAUTH_URL: "http://localhost:3000"
+      # Valores solo para entorno local Docker; sustituir en producción.
+      NEXTAUTH_SECRET: "docker-local-dev-secret-minimum-32-characters-long"
+      AUTH_SECRET: "docker-local-dev-secret-minimum-32-characters-long"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:16-alpine
@@ -23,6 +29,12 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d asistente_contable"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
 
 volumes:
   postgres_data:

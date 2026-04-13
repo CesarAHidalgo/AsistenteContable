@@ -23,13 +23,13 @@ import { getDashboardData } from "@/lib/data";
 import { categoryLabel, formatCurrency, formatDate } from "@/lib/utils";
 
 const tabs = [
-  { id: "overview", label: "🏠 Resumen", href: "/?tab=overview" },
-  { id: "transactions", label: "💸 Movimientos", href: "/?tab=transactions" },
-  { id: "analysis", label: "📈 Análisis", href: "/?tab=analysis" },
-  { id: "debts", label: "🏦 Deudas y tarjetas", href: "/?tab=debts" },
-  { id: "cards", label: "💳 Extractos TC", href: "/?tab=cards" },
-  { id: "simulation", label: "🧮 Simulación", href: "/?tab=simulation" },
-  { id: "reminders", label: "⏰ Recordatorios", href: "/?tab=reminders" }
+  { id: "overview", label: "Resumen", href: "/?tab=overview" },
+  { id: "transactions", label: "Movimientos", href: "/?tab=transactions" },
+  { id: "analysis", label: "Análisis", href: "/?tab=analysis" },
+  { id: "debts", label: "Deudas", href: "/?tab=debts" },
+  { id: "cards", label: "Tarjetas", href: "/?tab=cards" },
+  { id: "simulation", label: "Simulación", href: "/?tab=simulation" },
+  { id: "reminders", label: "Recordatorios", href: "/?tab=reminders" }
 ] as const;
 
 export default async function Home({
@@ -78,8 +78,20 @@ export default async function Home({
       <IdleSessionManager />
       <section className="hero hero-dense">
         <div className="hero-copy">
-          <p className="eyebrow">AsistenteContable</p>
-          <h1>✨ Controla ingresos, gastos, cuotas y tarjetas con una vista más simple y clara.</h1>
+          <div className="brand-stamp">
+            <span className="brand-stamp-mark" aria-hidden="true">
+              🧾
+            </span>
+            <span className="brand-stamp-copy">
+              <strong>AsistenteContable</strong>
+              <small>Tu dinero, ordenado sin complicarte</small>
+            </span>
+          </div>
+          <p className="eyebrow">Panel principal</p>
+          <h1>Ingresos, gastos y tarjetas en un solo lugar</h1>
+          <p className="hero-lead">
+            Registra movimientos al momento, revisa deudas y cortes con textos claros y sin hojas de cálculo.
+          </p>
           <div className="hero-actions">
             <Link href="/integraciones" className="inline-link">
               Integraciones
@@ -105,10 +117,22 @@ export default async function Home({
         </div>
 
         <div className="hero-summary hero-summary-grid">
-          <MetricCard label="Balance del mes" value={formatCurrency(data.summary.balance)} accent="primary" />
-          <MetricCard label="Ingresos" value={formatCurrency(data.summary.totalIncome)} />
-          <MetricCard label="Gastos" value={formatCurrency(data.summary.totalExpenses)} accent="danger" />
-          <MetricCard label="Deuda pendiente" value={formatCurrency(data.summary.totalDebt)} />
+          <MetricCard
+            label="Balance del mes"
+            value={formatCurrency(data.summary.balance)}
+            accent="primary"
+            icon="📊"
+            helper={data.summary.balance >= 0 ? "Mes bajo control" : "Mes apretado"}
+          />
+          <MetricCard label="Ingresos" value={formatCurrency(data.summary.totalIncome)} icon="💰" helper="Entradas del ciclo" />
+          <MetricCard
+            label="Gastos"
+            value={formatCurrency(data.summary.totalExpenses)}
+            accent="danger"
+            icon="💸"
+            helper="Salidas del ciclo"
+          />
+          <MetricCard label="Deuda pendiente" value={formatCurrency(data.summary.totalDebt)} accent="neutral" icon="🏦" helper="Saldo vivo total" />
         </div>
       </section>
 
@@ -129,7 +153,7 @@ export default async function Home({
 
       {activeTab === "overview" ? (
         <section className="grid-layout dashboard-grid">
-          <SectionCard kicker="Panorama" title="Pulso del mes" className="panel-stretch">
+          <SectionCard kicker="Panorama" title="Pulso del mes" icon="🧭" subtitle="Una lectura rápida para saber cómo va el ciclo." className="panel-stretch panel-brand">
             <div className="stack-list">
               <div className="snapshot-card">
                 <span className="detail-label">Movimientos cargados este mes</span>
@@ -151,7 +175,7 @@ export default async function Home({
             />
           </SectionCard>
 
-          <SectionCard kicker="Movimientos" title="Últimos registros" className="panel-stretch">
+          <SectionCard kicker="Movimientos" title="Últimos registros" icon="🕘" subtitle="Tus registros más recientes, listos para revisar o corregir." className="panel-stretch">
             <div className="stack-list">
               {data.transactions.length === 0 ? (
                 <p className="empty-state">Aún no tienes movimientos guardados.</p>
@@ -163,7 +187,7 @@ export default async function Home({
             </div>
           </SectionCard>
 
-          <SectionCard kicker="Deudas" title="Prioridades financieras" wide>
+          <SectionCard kicker="Deudas" title="Prioridades financieras" icon="🎯" subtitle="Ordenadas con estrategia bola de nieve: primero las salidas más rápidas." wide className="panel-highlight">
             <div className="stack-list two-column-list">
               {snowballDebts.length === 0 ? (
                 <p className="empty-state">Aún no tienes créditos o tarjetas registradas.</p>
@@ -178,7 +202,7 @@ export default async function Home({
 
       {activeTab === "transactions" ? (
         <section className="grid-layout dashboard-grid single-column">
-          <SectionCard kicker="Registro" title="Nuevo movimiento" wide>
+          <SectionCard kicker="Registro" title="Nuevo movimiento" icon="✍️" subtitle="Captura un gasto o ingreso sin salir del flujo." wide className="panel-brand">
             <TransactionForm
               redirectTab="transactions"
               creditCardDebts={data.debts
@@ -193,7 +217,7 @@ export default async function Home({
             />
           </SectionCard>
 
-          <SectionCard kicker="Movimientos" title="Historial por categoría" wide>
+          <SectionCard kicker="Movimientos" title="Historial por categoría" icon="🗂️" subtitle="Explora tus movimientos agrupados para leerlos de un vistazo." wide>
             <div className="stack-list">
               {data.transactions.length === 0 ? (
                 <p className="empty-state">Todavía no tienes movimientos guardados.</p>
@@ -233,7 +257,7 @@ export default async function Home({
 
       {activeTab === "analysis" ? (
         <section className="grid-layout dashboard-grid">
-          <SectionCard kicker="Análisis" title="Radiografía del ciclo actual" wide>
+          <SectionCard kicker="Análisis" title="Radiografía del ciclo actual" icon="📈" subtitle="Distribución, tendencias y señales para tomar decisiones." wide className="panel-highlight">
             <AnalysisPanel analytics={data.analytics} />
           </SectionCard>
 
@@ -250,11 +274,11 @@ export default async function Home({
 
       {activeTab === "debts" ? (
         <section className="grid-layout dashboard-grid">
-          <SectionCard kicker="Deudas" title="Nuevo crédito o tarjeta">
+          <SectionCard kicker="Deudas" title="Nuevo crédito o tarjeta" icon="🏦" subtitle="Registra la base financiera de cada producto." className="panel-brand">
             <DebtForm redirectTab="debts" />
           </SectionCard>
 
-          <SectionCard kicker="Pagos" title="Registrar pago">
+          <SectionCard kicker="Pagos" title="Registrar pago" icon="💵" subtitle="Aplica pagos con trazabilidad sobre saldo y capital.">
             <DebtPaymentForm debts={data.debts} redirectTab="debts" />
           </SectionCard>
 
@@ -268,7 +292,7 @@ export default async function Home({
             </ul>
           </SectionCard>
 
-          <SectionCard kicker="Seguimiento" title="Deudas activas" wide>
+          <SectionCard kicker="Seguimiento" title="Deudas activas" icon="🧱" subtitle="Cada deuda con su propio estado, presión y progreso." wide className="panel-highlight">
             <div className="stack-list two-column-list">
               {data.debts.length === 0 ? (
                 <p className="empty-state">Todavía no has agregado deudas.</p>
@@ -278,7 +302,7 @@ export default async function Home({
             </div>
           </SectionCard>
 
-          <SectionCard kicker="Administración" title="Editar o eliminar deudas y pagos" wide>
+          <SectionCard kicker="Administración" title="Editar o eliminar deudas y pagos" icon="🛠️" subtitle="Ajustes finos y mantenimiento de tus registros financieros." wide>
             <DebtManagementPanel debts={data.debts} redirectTab="debts" />
           </SectionCard>
         </section>
@@ -286,7 +310,7 @@ export default async function Home({
 
       {activeTab === "cards" ? (
         <section className="grid-layout dashboard-grid single-column">
-          <SectionCard kicker="Tarjetas" title="Extractos y compras por tarjeta" wide>
+          <SectionCard kicker="Tarjetas" title="Extractos y compras por tarjeta" icon="💳" subtitle="Una vista más cercana al extracto real de cada tarjeta." wide className="panel-highlight">
             <CreditCardStatements
               debts={data.debts.filter((debt) => debt.type === "CREDIT_CARD")}
               creditCardOptions={data.debts
@@ -304,7 +328,7 @@ export default async function Home({
 
       {activeTab === "simulation" ? (
         <section className="grid-layout dashboard-grid">
-          <SectionCard kicker="Simulación" title="Comparar cuota actual vs cuota aumentada" wide>
+          <SectionCard kicker="Simulación" title="Comparar cuota actual vs cuota aumentada" icon="🧮" subtitle="Evalúa cuánto ganas si subes la cuota o cambias la estrategia." wide className="panel-brand">
             <DebtSimulator />
           </SectionCard>
 
@@ -328,7 +352,7 @@ export default async function Home({
 
       {activeTab === "reminders" ? (
         <section className="grid-layout dashboard-grid">
-          <SectionCard kicker="Recordatorios" title="Nuevo recordatorio">
+          <SectionCard kicker="Recordatorios" title="Nuevo recordatorio" icon="⏰" subtitle="Programa pagos o alarmas puntuales sin perder seguimiento.">
             <ReminderForm />
           </SectionCard>
 
@@ -341,7 +365,7 @@ export default async function Home({
             </ul>
           </SectionCard>
 
-          <SectionCard kicker="Agenda" title="Todos los recordatorios" wide>
+          <SectionCard kicker="Agenda" title="Todos los recordatorios" icon="🗓️" subtitle="Tu lista viva de pendientes y vencimientos." wide>
             <div className="stack-list">
               {data.reminders.length === 0 ? (
                 <p className="empty-state">No hay recordatorios creados.</p>

@@ -2,7 +2,7 @@ import {
   updateCreditCardPurchaseInstallmentsAction,
   updateDebtPlanningAction
 } from "@/app/actions";
-import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { debtTypeLabel, formatCurrency, formatDate, formatPercent } from "@/lib/utils";
 
 type Debt = {
@@ -111,6 +111,16 @@ export function DebtCard({ debt }: { debt: Debt }) {
   const paid = debt.totalPrincipalPaid;
   const progress = debt.initialAmount === 0 ? 0 : (paid / debt.initialAmount) * 100;
   const lastPayment = debt.payments[0];
+  const debtTone =
+    debt.type === "CREDIT_CARD" ? "credit-card" : debt.type === "REVOLVING_CREDIT" ? "revolving" : "fixed";
+  const pressureLabel =
+    debt.type === "CREDIT_CARD"
+      ? debt.cardPurchaseSummary?.currentStatementOutstanding
+        ? "Presión alta"
+        : "Corte al día"
+      : debt.projection.estimatedInterest > debt.projection.estimatedPrincipal
+        ? "Interés dominante"
+        : "Pago sano";
   const mainPaymentLabel =
     debt.type === "CREDIT_CARD"
       ? "Pago mínimo estimado"
@@ -128,7 +138,7 @@ export function DebtCard({ debt }: { debt: Debt }) {
         : debt.monthlyPayment ?? debt.projection.estimatedPayment;
 
   return (
-    <details className="item-card debt-card debt-card-collapsible">
+    <details className={`item-card debt-card debt-card-collapsible debt-card-${debtTone}`}>
       <summary className="debt-summary">
         <div className="debt-summary-main">
           <div className="tag-row">
@@ -136,6 +146,9 @@ export function DebtCard({ debt }: { debt: Debt }) {
             {debt.annualEffectiveRate ? (
               <span className="chip neutral">EA {formatPercent(debt.annualEffectiveRate, 2)}</span>
             ) : null}
+            <span className={`chip ${pressureLabel === "Corte al día" || pressureLabel === "Pago sano" ? "income" : "warning"}`}>
+              {pressureLabel}
+            </span>
           </div>
           <h3>{debt.name}</h3>
           <p className="meta">Saldo pendiente: {formatCurrency(debt.currentAmount)}</p>
@@ -152,7 +165,7 @@ export function DebtCard({ debt }: { debt: Debt }) {
               <strong>{formatCurrency(debt.cardPurchaseSummary.currentStatementTotal)}</strong>
             </div>
           ) : null}
-          <span className="chip warning">{Math.round(progress)}%</span>
+          <span className="chip neutral">Avance {Math.round(progress)}%</span>
         </div>
       </summary>
 
@@ -285,15 +298,7 @@ export function DebtCard({ debt }: { debt: Debt }) {
                   defaultValue={debt.minimumPaymentAmount ?? ""}
                 />
               </label>
-              <ConfirmSubmitButton
-                idleLabel="Guardar planeación"
-                pendingLabel="Guardando..."
-                confirmTitle={`Vas a actualizar la planeación de ${debt.name}.`}
-                summaryFields={[
-                  { name: "monthlyPayment", label: "Pago mensual/base" },
-                  { name: "minimumPaymentAmount", label: "Pago mínimo" }
-                ]}
-              />
+              <PendingSubmitButton idleLabel="Guardar planeación" pendingLabel="Guardando..." />
             </form>
           ) : null}
           {debt.type === "CREDIT_CARD" && debt.cardPurchaseSummary ? (
@@ -401,12 +406,7 @@ export function DebtCard({ debt }: { debt: Debt }) {
                     <span>Nuevas cuotas para las compras seleccionadas</span>
                     <input name="installmentCount" type="number" min="1" step="1" required />
                   </label>
-                  <ConfirmSubmitButton
-                    idleLabel="Actualizar cuotas"
-                    pendingLabel="Actualizando..."
-                    confirmTitle="Vas a cambiar las cuotas de varias compras."
-                    summaryFields={[{ name: "installmentCount", label: "Nuevas cuotas" }]}
-                  />
+                  <PendingSubmitButton idleLabel="Actualizar cuotas" pendingLabel="Actualizando..." />
                 </form>
                 <div className="stack-list">
                   {debt.cardPurchaseSummary.purchases.map((purchase) => (
@@ -434,12 +434,7 @@ export function DebtCard({ debt }: { debt: Debt }) {
                               required
                             />
                           </label>
-                          <ConfirmSubmitButton
-                            idleLabel="Guardar compra"
-                            pendingLabel="Guardando..."
-                            confirmTitle={`Vas a actualizar las cuotas de ${purchase.description}.`}
-                            summaryFields={[{ name: "installmentCount", label: "Número de cuotas" }]}
-                          />
+                          <PendingSubmitButton idleLabel="Guardar compra" pendingLabel="Guardando..." />
                         </form>
                         <div className="stack-list">
                           {purchase.installments.slice(0, 6).map((installment) => (

@@ -1,4 +1,6 @@
 import { closeCreditCardStatementAction, updateCreditCardPurchaseAction } from "@/app/actions";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 type CreditCardDebt = {
@@ -83,7 +85,7 @@ export function CreditCardStatements({
   return (
     <div className="stack-list statement-stack">
       {debts.map((debt) => (
-        <article key={debt.id} className="statement-card">
+        <article key={debt.id} className="statement-card statement-card-hero">
           <header className="statement-card-header">
             <div>
               <p className="section-kicker">Extracto tarjeta</p>
@@ -109,10 +111,16 @@ export function CreditCardStatements({
               <div className="statement-metric">
                 <span className="detail-label">Pago mínimo estimado</span>
                 <strong>{formatCurrency(debt.cardPurchaseSummary?.projectedCurrentPayment ?? 0)}</strong>
+                <small>Base + cuotas activas del corte</small>
               </div>
               <div className="statement-metric">
                 <span className="detail-label">Pendiente por cubrir</span>
                 <strong>{formatCurrency(debt.cardPurchaseSummary?.currentStatementOutstanding ?? 0)}</strong>
+                <small>
+                  {debt.cardPurchaseSummary?.currentStatementOutstanding
+                    ? "Aún hay presión sobre el corte vigente"
+                    : "Tu corte actual va cubierto"}
+                </small>
               </div>
             </div>
           </header>
@@ -121,6 +129,7 @@ export function CreditCardStatements({
             <>
               {debt.cardPurchaseSummary.referenceStatementDate ? (
                 <form action={closeCreditCardStatementAction} className="inline-form statement-close-form">
+                  <input type="hidden" name="redirectTab" value="cards" />
                   <input type="hidden" name="debtId" value={debt.id} />
                   <input
                     type="hidden"
@@ -136,44 +145,16 @@ export function CreditCardStatements({
                         : ""
                     }
                   />
-                  <input
-                    type="hidden"
-                    name="statementTotal"
-                    value={String(debt.cardPurchaseSummary.currentStatementTotal)}
-                  />
-                  <input
-                    type="hidden"
-                    name="projectedPayment"
-                    value={String(debt.cardPurchaseSummary.projectedCurrentPayment)}
-                  />
-                  <input
-                    type="hidden"
-                    name="paidAmount"
-                    value={String(debt.cardPurchaseSummary.currentCyclePayments)}
-                  />
-                  <input
-                    type="hidden"
-                    name="outstandingAmount"
-                    value={String(debt.cardPurchaseSummary.currentStatementOutstanding)}
-                  />
-                  <input
-                    type="hidden"
-                    name="purchaseCount"
-                    value={String(
-                      debt.cardPurchaseSummary.purchases.filter(
-                        (purchase) =>
-                          purchase.statementDate &&
-                          debt.cardPurchaseSummary?.referenceStatementDate &&
-                          new Date(purchase.statementDate).toISOString().slice(0, 10) ===
-                            new Date(debt.cardPurchaseSummary.referenceStatementDate).toISOString().slice(0, 10)
-                      ).length
-                    )}
-                  />
                   <p className="meta">
                     Cuando cierres el corte, guardamos una foto fija del extracto actual para compararlo después
                     con pagos y cortes futuros.
                   </p>
-                  <button type="submit">Cerrar corte actual</button>
+                  <ConfirmSubmitButton
+                    idleLabel="Cerrar corte actual"
+                    pendingLabel="Cerrando..."
+                    confirmTitle={`Vas a cerrar el corte actual de ${debt.name}.`}
+                    confirmDescription="Se guardará una foto fija del extracto para compararlo después."
+                  />
                 </form>
               ) : null}
 
@@ -273,6 +254,7 @@ export function CreditCardStatements({
 
                     <div className="statement-purchase-body">
                       <form action={updateCreditCardPurchaseAction} className="form-grid compact-form inline-form">
+                        <input type="hidden" name="redirectTab" value="cards" />
                         <input type="hidden" name="transactionId" value={purchase.id} />
                         <label>
                           <span>Descripción</span>
@@ -347,7 +329,7 @@ export function CreditCardStatements({
                             </option>
                           </select>
                         </label>
-                        <button type="submit">Guardar compra</button>
+                        <PendingSubmitButton idleLabel="Guardar compra" pendingLabel="Guardando..." />
                       </form>
 
                       <div className="stack-list">

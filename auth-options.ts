@@ -4,7 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/crypto";
 
-const authSecret = process.env.NEXTAUTH_SECRET;
+const authSecret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET;
 
 const providers: NonNullable<NextAuthOptions["providers"]> = [
   CredentialsProvider({

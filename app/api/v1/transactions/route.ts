@@ -1,5 +1,6 @@
 import { PaymentMethod, TransactionType } from "@prisma/client";
 import { authenticateApiRequest } from "@/lib/auth";
+import { parseApiJson, transactionPostSchema } from "@/lib/api-v1-schemas";
 import { getCreditCardPurchaseCycle } from "@/lib/finance";
 import { logError, logInfo, logWarn } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
@@ -51,20 +52,21 @@ export async function POST(request: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const paymentMethod = String(body.paymentMethod ?? "OTHER") as PaymentMethod;
-    const amount = Number(body.amount ?? 0);
-    const transactionAt = new Date(String(body.transactionAt ?? new Date().toISOString()));
-    const transactionType = String(body.type ?? "EXPENSE") as TransactionType;
+    const parsed = await parseApiJson(request, transactionPostSchema);
+    if (parsed instanceof Response) {
+      return parsed;
+    }
+
+    const body = parsed;
+    const paymentMethod = body.paymentMethod;
+    const amount = body.amount;
+    const transactionAt = body.transactionAt ?? new Date();
+    const transactionType = body.type;
 
     let transaction;
 
-    if (paymentMethod === "CREDIT_CARD") {
-      const creditCardDebtId = String(body.creditCardDebtId ?? "").trim();
-
-      if (!creditCardDebtId) {
-        return Response.json({ error: "creditCardDebtId is required for credit card purchases" }, { status: 400 });
-      }
+    if (paymentMethod === PaymentMethod.CREDIT_CARD) {
+      const creditCardDebtId = body.creditCardDebtId;
 
       const debt = await prisma.debt.findFirst({
         where: {
@@ -78,8 +80,7 @@ export async function POST(request: Request) {
         return Response.json({ error: "Credit card debt not found" }, { status: 404 });
       }
 
-      const cycleSelection =
-        String(body.creditCardCycleSelection ?? "CURRENT_STATEMENT") as "CURRENT_STATEMENT" | "NEXT_STATEMENT";
+      const cycleSelection = body.creditCardCycleSelection ?? "CURRENT_STATEMENT";
       const purchaseCycle = getCreditCardPurchaseCycle(
         {
           dueDayOfMonth: debt.dueDayOfMonth,
@@ -96,12 +97,12 @@ export async function POST(request: Request) {
             user: {
               connect: { id: user.id }
             },
-            description: String(body.description ?? ""),
+            description: body.description,
             amount,
             type: transactionType,
-            category: String(body.category ?? "Otros"),
+            category: body.category,
             paymentMethod,
-            installmentCount: body.installmentCount ? Number(body.installmentCount) : null,
+            installmentCount: body.installmentCount ?? null,
             creditCardDebt: {
               connect: { id: creditCardDebtId }
             },
@@ -116,7 +117,9 @@ export async function POST(request: Request) {
           where: { id: debt.id },
           data: {
             currentAmount:
-              transactionType === "EXPENSE" ? debt.currentAmount.toNumber() + amount : debt.currentAmount
+              transactionType === TransactionType.EXPENSE
+                ? debt.currentAmount.toNumber() + amount
+                : debt.currentAmount
           }
         });
 
@@ -130,12 +133,12 @@ export async function POST(request: Request) {
           user: {
             connect: { id: user.id }
           },
-          description: String(body.description ?? ""),
+          description: body.description,
           amount,
           type: transactionType,
-          category: String(body.category ?? "Otros"),
+          category: body.category,
           paymentMethod,
-          installmentCount: body.installmentCount ? Number(body.installmentCount) : null,
+          installmentCount: body.installmentCount ?? null,
           transactionAt
         }
       });

@@ -16,7 +16,7 @@ import { formatDate } from "@/lib/utils";
 export default async function IntegracionesPage({
   searchParams
 }: {
-  searchParams: Promise<{ token?: string; message?: string; status?: string }>;
+  searchParams: Promise<{ message?: string; status?: string }>;
 }) {
   const user = await requireUser();
   const data = await getDashboardData(user.id);
@@ -42,12 +42,6 @@ export default async function IntegracionesPage({
 
         <SectionCard kicker="API" title="Generar token">
           <ApiTokenForm />
-          {params.token ? (
-            <div className="token-banner">
-              <strong>Guarda este token ahora:</strong>
-              <code>{params.token}</code>
-            </div>
-          ) : null}
           {params.message ? (
             <div className={params.status === "warning" ? "error-banner" : "token-banner"}>{params.message}</div>
           ) : null}

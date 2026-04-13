@@ -1,5 +1,5 @@
-import { DebtType } from "@prisma/client";
 import { authenticateApiRequest } from "@/lib/auth";
+import { debtPostSchema, parseApiJson } from "@/lib/api-v1-schemas";
 import { calculateDebtProjection } from "@/lib/finance";
 import { prisma } from "@/lib/prisma";
 
@@ -52,29 +52,31 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const initialAmount = Number(body.initialAmount ?? 0);
-  const currentAmount = Number(body.currentAmount ?? initialAmount);
+  const parsed = await parseApiJson(request, debtPostSchema);
+  if (parsed instanceof Response) {
+    return parsed;
+  }
+
+  const body = parsed;
+  const initialAmount = body.initialAmount;
+  const currentAmount = body.currentAmount ?? initialAmount;
 
   const debt = await prisma.debt.create({
     data: {
       userId: user.id,
-      name: String(body.name ?? ""),
-      type: String(body.type ?? "FIXED_INSTALLMENT") as DebtType,
+      name: body.name,
+      type: body.type,
       initialAmount,
       currentAmount,
-      installmentCount: body.installmentCount ? Number(body.installmentCount) : null,
-      startedAt: body.startedAt ? new Date(body.startedAt) : null,
-      annualEffectiveRate: body.annualEffectiveRate ? Number(body.annualEffectiveRate) : null,
-      monthlyPayment: body.monthlyPayment ? Number(body.monthlyPayment) : null,
-      creditLimit: body.creditLimit ? Number(body.creditLimit) : null,
-      minimumPaymentAmount: body.minimumPaymentAmount ? Number(body.minimumPaymentAmount) : null,
-      dueDayOfMonth: body.dueDayOfMonth ? Number(body.dueDayOfMonth) : null,
-      statementDayOfMonth: body.statementDayOfMonth ? Number(body.statementDayOfMonth) : null,
-      statementDayPurchasesToNextCycle:
-        body.statementDayPurchasesToNextCycle === undefined
-          ? true
-          : Boolean(body.statementDayPurchasesToNextCycle)
+      installmentCount: body.installmentCount ?? null,
+      startedAt: body.startedAt ?? null,
+      annualEffectiveRate: body.annualEffectiveRate ?? null,
+      monthlyPayment: body.monthlyPayment ?? null,
+      creditLimit: body.creditLimit ?? null,
+      minimumPaymentAmount: body.minimumPaymentAmount ?? null,
+      dueDayOfMonth: body.dueDayOfMonth ?? null,
+      statementDayOfMonth: body.statementDayOfMonth ?? null,
+      statementDayPurchasesToNextCycle: body.statementDayPurchasesToNextCycle ?? true
     }
   });
 

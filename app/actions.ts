@@ -1,5 +1,6 @@
 "use server";
 
+import type { Route } from "next";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { DebtType, PaymentMethod, TransactionType } from "@prisma/client";
@@ -62,8 +63,12 @@ export async function registerAction(formData: FormData) {
     where: { email }
   });
 
+  const loginAfterRegister = `/login?message=${encodeURIComponent(
+    "Si los datos son correctos, ya puedes iniciar sesión con tu correo y contraseña."
+  )}` as Route;
+
   if (existingUser) {
-    redirect("/registro?error=Ya%20existe%20un%20usuario%20con%20ese%20correo");
+    redirect(loginAfterRegister);
   }
 
   await prisma.user.create({
@@ -78,7 +83,7 @@ export async function registerAction(formData: FormData) {
     }
   });
 
-  redirect("/login?message=Cuenta%20creada.%20Ahora%20puedes%20iniciar%20sesi%C3%B3n");
+  redirect(loginAfterRegister);
 }
 
 export async function createTransactionAction(formData: FormData) {
@@ -449,11 +454,6 @@ export async function closeCreditCardStatementAction(formData: FormData) {
   const debtId = requiredString(formData.get("debtId"));
   const statementDateRaw = requiredString(formData.get("statementDate"));
   const paymentDueDateRaw = requiredString(formData.get("paymentDueDate"));
-  const providedStatementTotal = parseNullableAmount(formData.get("statementTotal"));
-  const providedProjectedPayment = parseNullableAmount(formData.get("projectedPayment"));
-  const providedPaidAmount = parseNullableAmount(formData.get("paidAmount"));
-  const providedOutstandingAmount = parseNullableAmount(formData.get("outstandingAmount"));
-  const providedPurchaseCount = Number(formData.get("purchaseCount") || 0);
 
   if (!statementDateRaw) {
     redirectWithFeedback(redirectTab, "warning", "Indica la fecha del corte que deseas cerrar.");
@@ -507,11 +507,6 @@ export async function closeCreditCardStatementAction(formData: FormData) {
         }, 0)
       : 0;
   const outstandingAmount = Math.max(0, projectedPayment - paidAmount);
-  const snapshotStatementTotal = providedStatementTotal ?? statementTotal;
-  const snapshotProjectedPayment = providedProjectedPayment ?? projectedPayment;
-  const snapshotPaidAmount = providedPaidAmount ?? paidAmount;
-  const snapshotOutstandingAmount = providedOutstandingAmount ?? outstandingAmount;
-  const snapshotPurchaseCount = providedPurchaseCount > 0 ? providedPurchaseCount : statementTransactions.length;
 
   await prisma.creditCardStatementSnapshot.upsert({
     where: {
@@ -524,11 +519,11 @@ export async function closeCreditCardStatementAction(formData: FormData) {
       paymentDueDate,
       basePayment: debt.monthlyPayment?.toNumber() ?? null,
       bankMinimumPayment: debt.minimumPaymentAmount?.toNumber() ?? null,
-      statementTotal: snapshotStatementTotal,
-      projectedPayment: snapshotProjectedPayment,
-      paidAmount: snapshotPaidAmount,
-      outstandingAmount: snapshotOutstandingAmount,
-      purchaseCount: snapshotPurchaseCount,
+      statementTotal,
+      projectedPayment,
+      paidAmount,
+      outstandingAmount,
+      purchaseCount: statementTransactions.length,
       closedAt: new Date()
     },
     create: {
@@ -537,11 +532,11 @@ export async function closeCreditCardStatementAction(formData: FormData) {
       paymentDueDate,
       basePayment: debt.monthlyPayment?.toNumber() ?? null,
       bankMinimumPayment: debt.minimumPaymentAmount?.toNumber() ?? null,
-      statementTotal: snapshotStatementTotal,
-      projectedPayment: snapshotProjectedPayment,
-      paidAmount: snapshotPaidAmount,
-      outstandingAmount: snapshotOutstandingAmount,
-      purchaseCount: snapshotPurchaseCount,
+      statementTotal,
+      projectedPayment,
+      paidAmount,
+      outstandingAmount,
+      purchaseCount: statementTransactions.length,
       closedAt: new Date()
     }
   });
@@ -550,8 +545,8 @@ export async function closeCreditCardStatementAction(formData: FormData) {
     userId: user.id,
     debtId: debt.id,
     statementDate: statementDate.toISOString(),
-    purchaseCount: snapshotPurchaseCount,
-    projectedPayment: snapshotProjectedPayment
+    purchaseCount: statementTransactions.length,
+    projectedPayment
   });
 
   redirectWithFeedback(redirectTab, "success", `Corte guardado para ${debt.name}.`);
@@ -1023,9 +1018,19 @@ export async function deleteDebtPaymentAction(formData: FormData) {
   redirectWithFeedback(redirectTab, "success", `Pago eliminado de ${debt.name}.`);
 }
 
-export async function createApiTokenAction(formData: FormData) {
+export type CreateApiTokenState = { error?: string; token?: string } | null;
+
+export async function createApiTokenAction(
+  _prev: CreateApiTokenState,
+  formData: FormData
+): Promise<CreateApiTokenState> {
   const user = await requireUser();
   const name = requiredString(formData.get("name"));
+
+  if (!name) {
+    return { error: "Indica un nombre para la integración." };
+  }
+
   const rawToken = `ac_${generateOpaqueToken(24)}`;
 
   await prisma.apiToken.create({
@@ -1036,7 +1041,8 @@ export async function createApiTokenAction(formData: FormData) {
     }
   });
 
-  redirect(`/integraciones?token=${encodeURIComponent(rawToken)}`);
+  revalidatePath("/integraciones");
+  return { token: rawToken };
 }
 
 export async function revokeApiTokenAction(formData: FormData) {

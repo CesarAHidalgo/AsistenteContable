@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { DebtType, PaymentMethod, ReminderType, TransactionType } from "@prisma/client";
 import {
   createApiTokenAction,
+  type CreateApiTokenState,
   createDebtAction,
   createDebtPaymentAction,
   deleteDebtAction,
@@ -929,16 +930,34 @@ export function TransactionManagementPanel({
 }
 
 export function ApiTokenForm() {
+  const [state, formAction, pending] = useActionState<CreateApiTokenState, FormData>(
+    createApiTokenAction,
+    null
+  );
+
   return (
-    <form action={createApiTokenAction} className="form-grid compact-form">
-      <FormLegend />
+    <>
+      <form action={formAction} className="form-grid compact-form">
+        <FormLegend />
 
-      <FieldLabel label="Nombre de la integracion" required>
-        <input name="name" placeholder="Shortcut iPhone" required />
-      </FieldLabel>
+        <FieldLabel label="Nombre de la integracion" required>
+          <input name="name" placeholder="Shortcut iPhone" required disabled={pending} />
+        </FieldLabel>
 
-      <button type="submit">Generar token</button>
-    </form>
+        <button type="submit" disabled={pending}>
+          {pending ? "Generando…" : "Generar token"}
+        </button>
+      </form>
+      {state?.token ? (
+        <div className="token-banner">
+          <p>
+            <strong>Guarda este token ahora.</strong> No volverá a mostrarse.
+          </p>
+          <code>{state.token}</code>
+        </div>
+      ) : null}
+      {state?.error ? <div className="error-banner">{state.error}</div> : null}
+    </>
   );
 }
 
