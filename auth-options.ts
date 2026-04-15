@@ -60,11 +60,13 @@ export const authOptions: NextAuthOptions = {
   secret: authSecret,
   session: {
     strategy: "jwt",
-    maxAge: 15 * 60,
-    updateAge: 0
+    // Client-side idle manager handles 15-minute inactivity sign-out.
+    // Keep auth session longer to avoid forced logout during active use.
+    maxAge: 8 * 60 * 60,
+    updateAge: 60
   },
   jwt: {
-    maxAge: 15 * 60
+    maxAge: 8 * 60 * 60
   },
   pages: {
     signIn: "/login"
