@@ -26,19 +26,25 @@ export function IdleSessionManager() {
 
     const events: Array<keyof WindowEventMap> = [
       "click",
+      "pointerdown",
       "keydown",
       "mousemove",
       "scroll",
-      "touchstart"
+      "touchstart",
+      "focus"
     ];
 
     events.forEach((eventName) => window.addEventListener(eventName, resetTimer, { passive: true }));
+    window.addEventListener("input", resetTimer, { passive: true });
+    window.addEventListener("change", resetTimer, { passive: true });
     resetTimer();
 
     return () => {
       events.forEach((eventName) =>
         window.removeEventListener(eventName, resetTimer as EventListener)
       );
+      window.removeEventListener("input", resetTimer as EventListener);
+      window.removeEventListener("change", resetTimer as EventListener);
 
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);

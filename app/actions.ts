@@ -45,6 +45,19 @@ function rawString(value: FormDataEntryValue | null) {
   return String(value ?? "");
 }
 
+function parseDateOnly(value: FormDataEntryValue | null) {
+  const text = requiredString(value);
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const day = Number(match[3]);
+    // Noon local time avoids UTC date shifts in storage/display.
+    return new Date(year, month, day, 12, 0, 0, 0);
+  }
+  return new Date(text);
+}
+
 function checked(value: FormDataEntryValue | null) {
   return value === "on" || value === "true";
 }
@@ -104,7 +117,7 @@ export async function createTransactionAction(formData: FormData) {
   const redirectTab = getRedirectTab(formData, "transactions");
   const installmentCount = Number(formData.get("installmentCount") || 0);
   const paymentMethod = requiredString(formData.get("paymentMethod")) as PaymentMethod;
-  const transactionAt = new Date(requiredString(formData.get("transactionAt")));
+  const transactionAt = parseDateOnly(formData.get("transactionAt"));
   const amount = parseAmount(formData.get("amount"));
   const transactionType = requiredString(formData.get("type")) as TransactionType;
   const creditCardDebtId = requiredString(formData.get("creditCardDebtId")) || null;
@@ -225,7 +238,7 @@ export async function updateTransactionAction(formData: FormData) {
   const newAmount = parseAmount(formData.get("amount"));
   const newType = requiredString(formData.get("type")) as TransactionType;
   const newCategory = requiredString(formData.get("category"));
-  const newTransactionAt = new Date(requiredString(formData.get("transactionAt")));
+  const newTransactionAt = parseDateOnly(formData.get("transactionAt"));
   const newInstallmentCount = Number(formData.get("installmentCount") || 0);
   const newPaymentMethod = requiredString(formData.get("paymentMethod")) as PaymentMethod;
   const creditCardDebtName = requiredString(formData.get("creditCardDebtName")) || null;
@@ -338,7 +351,7 @@ export async function createDebtAction(formData: FormData) {
       initialAmount,
       currentAmount,
       installmentCount: installmentCount > 0 ? installmentCount : null,
-      startedAt: formData.get("startedAt") ? new Date(requiredString(formData.get("startedAt"))) : null,
+      startedAt: formData.get("startedAt") ? parseDateOnly(formData.get("startedAt")) : null,
       annualEffectiveRate: annualEffectiveRate || null,
       monthlyPayment: monthlyPayment || null,
       creditLimit: creditLimit || null,
@@ -378,7 +391,7 @@ export async function updateDebtAction(formData: FormData) {
   const statementDayPurchasesToNextCycle =
     requiredString(formData.get("statementDayPurchasesToNextCycle")) === "true";
   const startedAtRaw = requiredString(formData.get("startedAt"));
-  const startedAt = startedAtRaw ? new Date(startedAtRaw) : null;
+  const startedAt = startedAtRaw ? parseDateOnly(startedAtRaw) : null;
 
   await prisma.debt.updateMany({
     where: { id: debtId, userId: user.id },
@@ -493,8 +506,8 @@ export async function closeCreditCardStatementAction(formData: FormData) {
     redirectWithFeedback(redirectTab, "warning", "No encontramos la tarjeta que intentas cerrar.");
   }
 
-  const statementDate = new Date(statementDateRaw);
-  const paymentDueDate = paymentDueDateRaw ? new Date(paymentDueDateRaw) : null;
+  const statementDate = parseDateOnly(statementDateRaw);
+  const paymentDueDate = paymentDueDateRaw ? parseDateOnly(paymentDueDateRaw) : null;
 
   const statementTransactions = debt.transactions.filter((transaction) => {
     if (!transaction.statementDate) {
@@ -603,7 +616,7 @@ export async function updateCreditCardPurchaseAction(formData: FormData) {
   const description = requiredString(formData.get("description"));
   const amount = parseAmount(formData.get("amount"));
   const installmentCount = Number(formData.get("installmentCount") || 1);
-  const transactionAt = new Date(requiredString(formData.get("transactionAt")));
+  const transactionAt = parseDateOnly(formData.get("transactionAt"));
   const creditCardDebtId = requiredString(formData.get("creditCardDebtId"));
   const cycleSelection =
     requiredString(formData.get("creditCardCycleSelection")) as "CURRENT_STATEMENT" | "NEXT_STATEMENT";
@@ -693,8 +706,8 @@ export async function updateCreditCardPurchaseAction(formData: FormData) {
 export async function updateBillingCycleAction(formData: FormData) {
   const user = await requireUser();
   const redirectTab = getRedirectTab(formData, "overview");
-  const cycleStartDate = new Date(requiredString(formData.get("billingCycleReferenceStart")));
-  const cycleEndDate = new Date(requiredString(formData.get("billingCycleReferenceEnd")));
+  const cycleStartDate = parseDateOnly(formData.get("billingCycleReferenceStart"));
+  const cycleEndDate = parseDateOnly(formData.get("billingCycleReferenceEnd"));
 
   if (Number.isNaN(cycleStartDate.getTime()) || Number.isNaN(cycleEndDate.getTime()) || cycleStartDate >= cycleEndDate) {
     redirectWithFeedback(redirectTab, "warning", "El ciclo debe tener una fecha de inicio anterior a la fecha final.");
@@ -718,7 +731,7 @@ export async function createReminderAction(formData: FormData) {
   const redirectTab = getRedirectTab(formData, "reminders");
   const amount = parseAmount(formData.get("amount"));
   const type = requiredString(formData.get("type")) as "PAYMENT" | "ALARM";
-  const dueDate = new Date(requiredString(formData.get("dueDate")));
+  const dueDate = parseDateOnly(formData.get("dueDate"));
   const notificationAtRaw = requiredString(formData.get("notificationAt"));
   const notificationAt = notificationAtRaw ? new Date(notificationAtRaw) : null;
   const notifyDaysBefore = Number(formData.get("notifyDaysBefore") || 5);
@@ -756,7 +769,7 @@ export async function updateReminderAction(formData: FormData) {
   const reminderId = requiredString(formData.get("reminderId"));
   const amount = parseAmount(formData.get("amount"));
   const type = requiredString(formData.get("type")) as "PAYMENT" | "ALARM";
-  const dueDate = new Date(requiredString(formData.get("dueDate")));
+  const dueDate = parseDateOnly(formData.get("dueDate"));
   const notificationAtRaw = requiredString(formData.get("notificationAt"));
   const notificationAt = notificationAtRaw ? new Date(notificationAtRaw) : null;
   const notifyDaysBefore = Number(formData.get("notifyDaysBefore") || 5);
@@ -819,7 +832,7 @@ export async function createDebtPaymentAction(formData: FormData) {
   const redirectTab = getRedirectTab(formData, "debts");
   const debtId = requiredString(formData.get("debtId"));
   const amount = parseAmount(formData.get("amount"));
-  const paidAt = new Date(requiredString(formData.get("paidAt")));
+  const paidAt = parseDateOnly(formData.get("paidAt"));
 
   const debt = await prisma.debt.findFirst({
     where: { id: debtId, userId: user.id }
@@ -897,7 +910,7 @@ export async function updateDebtPaymentAction(formData: FormData) {
   const paymentId = requiredString(formData.get("paymentId"));
   const debtId = requiredString(formData.get("debtId"));
   const amount = parseAmount(formData.get("amount"));
-  const paidAt = new Date(requiredString(formData.get("paidAt")));
+  const paidAt = parseDateOnly(formData.get("paidAt"));
 
   const debt = await prisma.debt.findFirst({
     where: { id: debtId, userId: user.id },
