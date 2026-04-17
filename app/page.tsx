@@ -16,6 +16,7 @@ import { MetricCard } from "@/components/metric-card";
 import { ReminderCard } from "@/components/reminder-card";
 import { SectionCard } from "@/components/section-card";
 import { TabNav } from "@/components/tab-nav";
+import { TransactionsFilterBar } from "@/components/transactions-filter-bar";
 import { TransactionCard } from "@/components/transaction-card";
 import { IdleSessionManager } from "@/components/idle-session-manager";
 import { requireUser } from "@/lib/auth";
@@ -35,11 +36,32 @@ const tabs = [
 export default async function Home({
   searchParams
 }: {
-  searchParams?: Promise<{ tab?: string; status?: string; message?: string }>;
+  searchParams?: Promise<{
+    tab?: string;
+    status?: string;
+    message?: string;
+    txQ?: string;
+    txCycle?: string;
+    txCat?: string;
+    txType?: string;
+  }>;
 }) {
   const user = await requireUser();
-  const data = await getDashboardData(user.id);
   const resolvedSearchParams = searchParams ? await searchParams : {};
+  const txFilters = {
+    q: resolvedSearchParams.txQ,
+    cycle: resolvedSearchParams.txCycle,
+    category: resolvedSearchParams.txCat,
+    type: resolvedSearchParams.txType as "INCOME" | "EXPENSE" | "" | undefined
+  };
+  const data = await getDashboardData(user.id, {
+    transactionList: {
+      q: txFilters.q,
+      cycle: txFilters.cycle,
+      category: txFilters.category,
+      type: txFilters.type === "INCOME" || txFilters.type === "EXPENSE" ? txFilters.type : ""
+    }
+  });
   const activeTab = tabs.some((tab) => tab.id === resolvedSearchParams.tab)
     ? resolvedSearchParams.tab ?? "overview"
     : "overview";
@@ -62,14 +84,14 @@ export default async function Home({
       return leftPayoffMonths - rightPayoffMonths;
     });
   const transactionsByCategory = Array.from(
-    data.transactions.reduce(
+    data.transactionsList.reduce(
       (map, transaction) => {
         const bucket = map.get(transaction.category) ?? [];
         bucket.push(transaction);
         map.set(transaction.category, bucket);
         return map;
       },
-      new Map<string, typeof data.transactions>()
+      new Map<string, typeof data.transactionsList>()
     )
   ).sort((left, right) => right[1].length - left[1].length);
 
@@ -218,9 +240,22 @@ export default async function Home({
           </SectionCard>
 
           <SectionCard kicker="Movimientos" title="Historial por categoría" icon="🗂️" subtitle="Explora tus movimientos agrupados para leerlos de un vistazo." wide>
+            <TransactionsFilterBar
+              defaults={{
+                txQ: resolvedSearchParams.txQ,
+                txCycle: data.transactionCycles.selectedKey,
+                txCat: resolvedSearchParams.txCat,
+                txType: resolvedSearchParams.txType
+              }}
+              cycles={data.transactionCycles.options.map((item) => ({
+                key: item.key,
+                label: item.label,
+                isCurrent: item.key === data.transactionCycles.currentKey
+              }))}
+            />
             <div className="stack-list">
-              {data.transactions.length === 0 ? (
-                <p className="empty-state">Todavía no tienes movimientos guardados.</p>
+              {data.transactionsList.length === 0 ? (
+                <p className="empty-state">No hay movimientos con estos filtros. Prueba ajustar el ciclo o limpiar filtros.</p>
               ) : (
                 transactionsByCategory.map(([category, transactions]) => (
                   <details key={category} className="item-card category-group">
