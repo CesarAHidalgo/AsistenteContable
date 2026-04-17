@@ -38,8 +38,7 @@ export default async function Home({
     status?: string;
     message?: string;
     txQ?: string;
-    txFrom?: string;
-    txTo?: string;
+    txCycle?: string;
     txCat?: string;
     txType?: string;
   }>;
@@ -48,16 +47,14 @@ export default async function Home({
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const txFilters = {
     q: resolvedSearchParams.txQ,
-    from: resolvedSearchParams.txFrom,
-    to: resolvedSearchParams.txTo,
+    cycle: resolvedSearchParams.txCycle,
     category: resolvedSearchParams.txCat,
     type: resolvedSearchParams.txType as "INCOME" | "EXPENSE" | "" | undefined
   };
   const data = await getDashboardData(user.id, {
     transactionList: {
       q: txFilters.q,
-      from: txFilters.from,
-      to: txFilters.to,
+      cycle: txFilters.cycle,
       category: txFilters.category,
       type: txFilters.type === "INCOME" || txFilters.type === "EXPENSE" ? txFilters.type : ""
     }
@@ -321,11 +318,15 @@ export default async function Home({
             <TransactionsFilterBar
               defaults={{
                 txQ: resolvedSearchParams.txQ,
-                txFrom: resolvedSearchParams.txFrom,
-                txTo: resolvedSearchParams.txTo,
+                txCycle: data.transactionCycles.selectedKey,
                 txCat: resolvedSearchParams.txCat,
                 txType: resolvedSearchParams.txType
               }}
+              cycles={data.transactionCycles.options.map((item) => ({
+                key: item.key,
+                label: item.label,
+                isCurrent: item.key === data.transactionCycles.currentKey
+              }))}
             />
             <div className="stack-list">
               {data.transactionsList.length === 0 ? (

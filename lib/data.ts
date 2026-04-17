@@ -16,13 +16,65 @@ export type TransactionListFilterInput = {
   to?: string;
   category?: string;
   type?: TransactionType | "";
+  cycle?: string;
 };
+
+type CycleRange = {
+  start: Date;
+  endExclusive: Date;
+};
+
+function formatDateInputValue(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
+}
+
+function cycleFilterKeyFromRange(range: { start: Date; end: Date }) {
+  return `${formatDateInputValue(range.start)}|${formatDateInputValue(range.end)}`;
+}
+
+function parseCycleFilterKey(rawKey?: string): CycleRange | null {
+  if (!rawKey) {
+    return null;
+  }
+  const [rawStart, rawEnd] = rawKey.split("|");
+  if (!rawStart || !rawEnd) {
+    return null;
+  }
+  const start = new Date(rawStart);
+  const end = new Date(rawEnd);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    return null;
+  }
+  start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
+  return {
+    start,
+    endExclusive: new Date(end.getTime() + 1)
+  };
+}
 
 function buildTransactionListWhere(
   userId: string,
-  f?: TransactionListFilterInput
+  f: TransactionListFilterInput | undefined,
+  currentCycle: { start: Date; end: Date }
 ): Prisma.TransactionWhereInput {
   const and: Prisma.TransactionWhereInput[] = [{ userId }];
+  const selectedCycleRange =
+    parseCycleFilterKey(f?.cycle) ??
+    ({
+      start: new Date(currentCycle.start),
+      endExclusive: new Date(currentCycle.end.getTime() + 1)
+    } satisfies CycleRange);
+
+  and.push({
+    transactionAt: {
+      gte: selectedCycleRange.start,
+      lt: selectedCycleRange.endExclusive
+    }
+  });
+
   if (!f) {
     return { AND: and };
   }
@@ -158,7 +210,7 @@ export async function getDashboardData(
       orderBy: { transactionAt: "desc" }
     }),
     prisma.transaction.findMany({
-      where: buildTransactionListWhere(userId, options?.transactionList),
+      where: buildTransactionListWhere(userId, options?.transactionList, budgetCycle),
       include: {
         creditCardDebt: {
           select: { name: true }
@@ -275,6 +327,24 @@ export async function getDashboardData(
     return diffDays >= 0 && diffDays <= (item.notifyDaysBefore || 5);
   });
 
+  const transactionCycleOptions = buildTransactionCycleOptions({
+    transactions: allTransactions.map((item) => item.transactionAt),
+    currentCycle: budgetCycle,
+    billingCycleReferenceStart: user.billingCycleReferenceStart,
+    billingCycleReferenceEnd: user.billingCycleReferenceEnd,
+    billingCycleStartDay: user.billingCycleStartDay,
+    billingCycleEndDay: user.billingCycleEndDay
+  });
+  const currentTransactionCycleKey = cycleFilterKeyFromRange({
+    start: budgetCycle.start,
+    end: budgetCycle.end
+  });
+  const selectedTransactionCycleKey =
+    parseCycleFilterKey(options?.transactionList?.cycle) &&
+    transactionCycleOptions.some((item) => item.key === options?.transactionList?.cycle)
+      ? (options?.transactionList?.cycle as string)
+      : currentTransactionCycleKey;
+
   return {
     summary: {
       totalIncome,
@@ -345,6 +415,11 @@ export async function getDashboardData(
       ...item,
       amount: item.amount.toNumber()
     })),
+    transactionCycles: {
+      selectedKey: selectedTransactionCycleKey,
+      currentKey: currentTransactionCycleKey,
+      options: transactionCycleOptions
+    },
     recurringTemplates: recurringTemplates.map((item) => ({
       id: item.id,
       description: item.description,
@@ -463,6 +538,60 @@ export async function getDashboardData(
       }))
     }
   };
+}
+
+function buildTransactionCycleOptions({
+  transactions,
+  currentCycle,
+  billingCycleReferenceStart,
+  billingCycleReferenceEnd,
+  billingCycleStartDay,
+  billingCycleEndDay
+}: {
+  transactions: Date[];
+  currentCycle: { start: Date; end: Date };
+  billingCycleReferenceStart: Date | null;
+  billingCycleReferenceEnd: Date | null;
+  billingCycleStartDay: number;
+  billingCycleEndDay: number;
+}) {
+  const uniqueCycles = new Map<string, { key: string; start: Date; end: Date; label: string }>();
+  const pushCycle = (start: Date, end: Date) => {
+    const key = cycleFilterKeyFromRange({ start, end });
+    if (uniqueCycles.has(key)) {
+      return;
+    }
+    uniqueCycles.set(key, {
+      key,
+      start,
+      end,
+      label: `${formatDateInputValue(start)} al ${formatDateInputValue(end)}`
+    });
+  };
+
+  pushCycle(new Date(currentCycle.start), new Date(currentCycle.end));
+
+  for (const transactionAt of transactions) {
+    const cycle =
+      billingCycleReferenceStart && billingCycleReferenceEnd
+        ? getBudgetCycleRangeFromReference(
+            transactionAt,
+            billingCycleReferenceStart,
+            billingCycleReferenceEnd
+          )
+        : getBudgetCycleRange(transactionAt, billingCycleStartDay, billingCycleEndDay);
+    pushCycle(new Date(cycle.start), new Date(cycle.end));
+  }
+
+  return [...uniqueCycles.values()]
+    .sort((left, right) => right.start.getTime() - left.start.getTime())
+    .slice(0, 24)
+    .map((item) => ({
+      key: item.key,
+      start: item.start.toISOString(),
+      end: item.end.toISOString(),
+      label: item.label
+    }));
 }
 
 function buildBreakdown<T extends { amount: { toNumber(): number } }>(

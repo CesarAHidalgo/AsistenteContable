@@ -26,11 +26,15 @@ export function TransactionsFilterBar({
 }: {
   defaults: {
     txQ?: string;
-    txFrom?: string;
-    txTo?: string;
+    txCycle?: string;
     txCat?: string;
     txType?: string;
   };
+  cycles: Array<{
+    key: string;
+    label: string;
+    isCurrent: boolean;
+  }>;
 }) {
   return (
     <form method="get" action="/movimientos" className="transactions-filter-form">
@@ -45,12 +49,14 @@ export function TransactionsFilterBar({
           />
         </label>
         <label>
-          <span className="filter-label">Desde</span>
-          <input type="date" name="txFrom" defaultValue={defaults.txFrom ?? ""} />
-        </label>
-        <label>
-          <span className="filter-label">Hasta</span>
-          <input type="date" name="txTo" defaultValue={defaults.txTo ?? ""} />
+          <span className="filter-label">Ciclo</span>
+          <select name="txCycle" defaultValue={defaults.txCycle ?? ""}>
+            {cycles.map((cycle) => (
+              <option key={cycle.key} value={cycle.key}>
+                {cycle.isCurrent ? `${cycle.label} (actual)` : cycle.label}
+              </option>
+            ))}
+          </select>
         </label>
         <label>
           <span className="filter-label">Categoría</span>
@@ -76,7 +82,7 @@ export function TransactionsFilterBar({
       </div>
       <div className="filter-actions">
         <PendingSubmitButton idleLabel="Aplicar filtros" pendingLabel="Aplicando…" />
-        <Link href={"/movimientos" as Route} className="inline-link" prefetch={false}>
+        <Link href={"/movimientos?tab=transactions" as Route} className="inline-link" prefetch={false}>
           Limpiar
         </Link>
       </div>
