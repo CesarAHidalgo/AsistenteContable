@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { DebtType, PaymentMethod, ReminderType, TransactionType } from "@prisma/client";
 import {
   createApiTokenAction,
@@ -523,7 +524,7 @@ export function ReminderForm() {
         help="Requiere configurar credenciales del proveedor en el servidor."
       />
 
-      <button type="submit">Crear recordatorio</button>
+      <PendingSubmitButton idleLabel="Crear recordatorio" pendingLabel="Creando…" />
     </form>
   );
 }
@@ -905,7 +906,7 @@ export function TransactionManagementPanel({
                     </FieldLabel>
                   ) : null}
 
-                  <button type="submit">Guardar movimiento</button>
+                  <PendingSubmitButton idleLabel="Guardar movimiento" pendingLabel="Guardando…" />
                 </form>
               </details>
 
@@ -916,9 +917,11 @@ export function TransactionManagementPanel({
                   <p className="meta">
                     Esto elimina el movimiento y, si pertenece a una tarjeta, revierte el impacto sobre la deuda.
                   </p>
-                  <button type="submit" className="ghost-button destructive-button">
-                    Confirmar eliminacion
-                  </button>
+                  <PendingSubmitButton
+                    className="ghost-button destructive-button"
+                    idleLabel="Confirmar eliminación"
+                    pendingLabel="Eliminando…"
+                  />
                 </form>
               </details>
             </div>
@@ -965,9 +968,7 @@ export function RevokeTokenForm({ tokenId }: { tokenId: string }) {
   return (
     <form action={revokeApiTokenAction}>
       <input type="hidden" name="tokenId" value={tokenId} />
-      <button type="submit" className="ghost-button">
-        Revocar
-      </button>
+      <PendingSubmitButton className="ghost-button" idleLabel="Revocar" pendingLabel="Revocando…" />
     </form>
   );
 }
@@ -993,7 +994,7 @@ export function RegisterForm() {
         <input name="confirmPassword" type="password" minLength={8} required />
       </FieldLabel>
 
-      <button type="submit">Crear cuenta</button>
+      <PendingSubmitButton idleLabel="Crear cuenta" pendingLabel="Creando cuenta…" />
     </form>
   );
 }

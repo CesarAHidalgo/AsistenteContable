@@ -5,7 +5,8 @@ export function SectionCard({
   wide = false,
   className = "",
   icon,
-  subtitle
+  subtitle,
+  id
 }: {
   kicker: string;
   title: string;
@@ -14,9 +15,10 @@ export function SectionCard({
   className?: string;
   icon?: string;
   subtitle?: string;
+  id?: string;
 }) {
   return (
-    <article className={`panel ${wide ? "panel-wide" : ""} ${className}`.trim()}>
+    <article id={id} className={`panel ${wide ? "panel-wide" : ""} ${className}`.trim()}>
       <div className="panel-header">
         <div>
           <p className="section-kicker">

@@ -23,7 +23,7 @@ export default async function IntegracionesPage({
   const params = await searchParams;
 
   return (
-    <main className="page-shell">
+    <main id="main-content" className="page-shell" tabIndex={-1}>
       <IdleSessionManager />
       <section className="hero compact-hero">
         <div className="hero-copy">
@@ -33,7 +33,7 @@ export default async function IntegracionesPage({
             Crea tokens personales para consumir la API desde clientes que controles. Cada token se puede revocar cuando quieras.
           </p>
           <div className="hero-actions">
-            <Link href="/" className="inline-link">
+            <Link href="/resumen" className="inline-link" prefetch={false}>
               Volver al dashboard
             </Link>
             <LogoutButton />
