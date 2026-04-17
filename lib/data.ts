@@ -8,7 +8,6 @@ import {
   getCreditCardCycleInfo
 } from "@/lib/finance";
 import { decimalToNumber } from "@/lib/serializers";
-import { monthPeriodKey } from "@/lib/month-period";
 export type TransactionListFilterInput = {
   q?: string;
   from?: string;
@@ -114,7 +113,6 @@ export async function getDashboardData(
   userId: string,
   options?: { transactionList?: TransactionListFilterInput }
 ) {
-  const budgetPeriodKey = monthPeriodKey();
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: {
