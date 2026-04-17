@@ -22,7 +22,8 @@ const categories = [
 ];
 
 export function TransactionsFilterBar({
-  defaults
+  defaults,
+  cycles
 }: {
   defaults: {
     txQ?: string;

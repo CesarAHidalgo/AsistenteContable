@@ -8,8 +8,6 @@ import {
   getCreditCardCycleInfo
 } from "@/lib/finance";
 import { decimalToNumber } from "@/lib/serializers";
-import { monthPeriodKey } from "@/lib/month-period";
-
 export type TransactionListFilterInput = {
   q?: string;
   from?: string;
@@ -18,7 +16,7 @@ export type TransactionListFilterInput = {
   type?: TransactionType | "";
   cycle?: string;
 };
-
+import { monthPeriodKey } from "@/lib/month-period";
 type CycleRange = {
   start: Date;
   endExclusive: Date;
