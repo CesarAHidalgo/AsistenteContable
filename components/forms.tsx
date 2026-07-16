@@ -35,6 +35,7 @@ const categories = [
   "Servicios",
   "Mercado",
   "Restaurantes",
+  "Subscripciones",
   "Transporte",
   "Combustible",
   "Salud",
@@ -233,6 +234,8 @@ export function TransactionForm({
 
 export function DebtForm({ redirectTab }: { redirectTab: string }) {
   const [debtType, setDebtType] = useState<DebtType>("FIXED_INSTALLMENT");
+  const [payrollAutopayEnabled, setPayrollAutopayEnabled] = useState(false);
+  const [cashbackEnabled, setCashbackEnabled] = useState(false);
   const isFixed = debtType === "FIXED_INSTALLMENT";
   const isRevolving = debtType === "REVOLVING_CREDIT";
   const isCreditCard = debtType === "CREDIT_CARD";
@@ -299,6 +302,15 @@ export function DebtForm({ redirectTab }: { redirectTab: string }) {
       </FieldLabel>
 
       <FieldLabel
+        label="Fecha de primera cuota"
+        required={false}
+        optional
+        help="Úsala cuando la primera cuota real no cae en el siguiente día de pago. Ej. desembolso a fin de mes y primera cuota al mes siguiente."
+      >
+        <input name="firstPaymentAt" type="date" />
+      </FieldLabel>
+
+      <FieldLabel
         label="Tasa EA (%)"
         required={isFixed || isRevolving}
         optional={isCreditCard}
@@ -336,6 +348,43 @@ export function DebtForm({ redirectTab }: { redirectTab: string }) {
       <FieldLabel label="Dia de pago" required={isFixed || isCreditCard} optional={isRevolving}>
         <input name="dueDayOfMonth" type="number" min="1" max="31" required={isFixed || isCreditCard} />
       </FieldLabel>
+
+      {isFixed ? (
+        <>
+          <div className="form-section-title">Descuento por nómina</div>
+
+          <label className="checkbox-label">
+            <span className="field-label-row">
+              <span>Aplicar pago automático al registrar la nómina</span>
+              <span className="field-pill optional">Opcional</span>
+            </span>
+            <span className="checkbox-row">
+              <input
+                name="payrollAutopayEnabled"
+                type="checkbox"
+                checked={payrollAutopayEnabled}
+                onChange={(event) => setPayrollAutopayEnabled(event.target.checked)}
+              />
+              <span>Activar descuento automático</span>
+            </span>
+            <span className="field-help">
+              Si lo activas, cuando registres un ingreso de nómina se creará también el pago de esta deuda.
+            </span>
+          </label>
+
+          <FieldLabel
+            label="Fuente de nómina"
+            optional
+            help="Ej. MeLi. Si la completas, solo se activará cuando la descripción del ingreso contenga ese texto."
+          >
+            <input
+              name="payrollAutopaySource"
+              placeholder="Ej. MeLi"
+              disabled={!payrollAutopayEnabled}
+            />
+          </FieldLabel>
+        </>
+      ) : null}
 
       {(isRevolving || isCreditCard) ? (
         <>
@@ -382,6 +431,41 @@ export function DebtForm({ redirectTab }: { redirectTab: string }) {
               <option value="true">Van al siguiente pago</option>
               <option value="false">Entran en este mismo corte</option>
             </select>
+          </FieldLabel>
+
+          <div className="form-section-title">Cashback</div>
+
+          <label className="checkbox-label">
+            <span className="field-label-row">
+              <span>La tarjeta da cashback</span>
+              <span className="field-pill optional">Opcional</span>
+            </span>
+            <span className="checkbox-row">
+              <input
+                name="cashbackEnabled"
+                type="checkbox"
+                checked={cashbackEnabled}
+                onChange={(event) => setCashbackEnabled(event.target.checked)}
+              />
+              <span>Activar cashback</span>
+            </span>
+            <span className="field-help">
+              Se calculará sobre las compras registradas en la tarjeta para mostrar el valor del corte actual.
+            </span>
+          </label>
+
+          <FieldLabel
+            label="Porcentaje de cashback (%)"
+            optional
+            help="Ej. 1 para 1%."
+          >
+            <input
+              name="cashbackPercent"
+              type="number"
+              min="0"
+              step="0.01"
+              disabled={!cashbackEnabled}
+            />
           </FieldLabel>
         </>
       ) : null}
@@ -589,8 +673,13 @@ export function DebtManagementPanel({
     currentAmount: number;
     installmentCount: number | null;
     startedAt: string | Date | null;
+    firstPaymentAt: string | Date | null;
     annualEffectiveRate: number | null;
     monthlyPayment: number | null;
+    payrollAutopayEnabled: boolean;
+    payrollAutopaySource: string | null;
+    cashbackEnabled: boolean;
+    cashbackPercent: number | null;
     creditLimit: number | null;
     minimumPaymentAmount: number | null;
     dueDayOfMonth: number | null;
@@ -660,6 +749,13 @@ export function DebtManagementPanel({
                     defaultValue={debt.startedAt ? formatDateInput(new Date(debt.startedAt)) : ""}
                   />
                 </FieldLabel>
+                <FieldLabel label="Fecha de primera cuota" optional>
+                  <input
+                    name="firstPaymentAt"
+                    type="date"
+                    defaultValue={debt.firstPaymentAt ? formatDateInput(new Date(debt.firstPaymentAt)) : ""}
+                  />
+                </FieldLabel>
                 <FieldLabel label="Tasa EA (%)" optional>
                   <input
                     name="annualEffectiveRate"
@@ -676,6 +772,53 @@ export function DebtManagementPanel({
                     min="0"
                     step="0.01"
                     defaultValue={debt.monthlyPayment ?? ""}
+                  />
+                </FieldLabel>
+                <label className="checkbox-label">
+                  <span className="field-label-row">
+                    <span>Descontar al registrar nómina</span>
+                    <span className="field-pill optional">Opcional</span>
+                  </span>
+                  <span className="checkbox-row">
+                    <input
+                      name="payrollAutopayEnabled"
+                      type="checkbox"
+                      defaultChecked={debt.payrollAutopayEnabled}
+                    />
+                    <span>Activar descuento automático</span>
+                  </span>
+                  <span className="field-help">
+                    Si está activo, un ingreso de nómina podrá generar el pago de esta deuda automáticamente.
+                  </span>
+                </label>
+                <FieldLabel label="Fuente de nómina" optional>
+                  <input
+                    name="payrollAutopaySource"
+                    defaultValue={debt.payrollAutopaySource ?? ""}
+                    placeholder="Ej. MeLi"
+                  />
+                </FieldLabel>
+                <label className="checkbox-label">
+                  <span className="field-label-row">
+                    <span>La tarjeta da cashback</span>
+                    <span className="field-pill optional">Opcional</span>
+                  </span>
+                  <span className="checkbox-row">
+                    <input
+                      name="cashbackEnabled"
+                      type="checkbox"
+                      defaultChecked={debt.cashbackEnabled}
+                    />
+                    <span>Activar cashback</span>
+                  </span>
+                </label>
+                <FieldLabel label="Porcentaje de cashback (%)" optional>
+                  <input
+                    name="cashbackPercent"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    defaultValue={debt.cashbackPercent ?? ""}
                   />
                 </FieldLabel>
                 <FieldLabel label="Cupo total" optional>

@@ -3,6 +3,7 @@
 import type { Route } from "next";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import { DebtType, PaymentMethod, TransactionType } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
 import { generateOpaqueToken, hashPassword, hashToken } from "@/lib/crypto";
@@ -73,6 +74,92 @@ function redirectWithFeedback(
 ): never {
   revalidatePath("/");
   redirect(dashboardUrlWithFeedback(tab, status, message) as Route);
+}
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function matchesPayrollSource(description: string, source: string | null) {
+  if (!source) {
+    return true;
+  }
+
+  return normalizeText(description).includes(normalizeText(source));
+}
+
+async function applyPayrollAutopayForIncome(params: {
+  tx: Prisma.TransactionClient;
+  userId: string;
+  transactionAt: Date;
+  description: string;
+}) {
+  const debts = await params.tx.debt.findMany({
+    where: {
+      userId: params.userId,
+      type: "FIXED_INSTALLMENT",
+      payrollAutopayEnabled: true,
+      currentAmount: { gt: 0 }
+    }
+  });
+
+  for (const debt of debts) {
+    if (!debt.monthlyPayment || debt.monthlyPayment.lte(0)) {
+      continue;
+    }
+    if (!matchesPayrollSource(params.description, debt.payrollAutopaySource)) {
+      continue;
+    }
+
+    const amount = debt.monthlyPayment.toNumber();
+    const paymentSplit = splitDebtPayment(
+      {
+        type: debt.type,
+        currentAmount: debt.currentAmount.toNumber(),
+        annualEffectiveRate: debt.annualEffectiveRate?.toNumber() ?? null,
+        monthlyPayment: debt.monthlyPayment?.toNumber() ?? null,
+        creditLimit: debt.creditLimit?.toNumber() ?? null,
+        minimumPaymentAmount: debt.minimumPaymentAmount?.toNumber() ?? null,
+        dueDayOfMonth: debt.dueDayOfMonth,
+        statementDayOfMonth: debt.statementDayOfMonth,
+        statementDayPurchasesToNextCycle: debt.statementDayPurchasesToNextCycle
+      },
+      amount
+    );
+
+    await params.tx.debtPayment.create({
+      data: {
+        debtId: debt.id,
+        amount,
+        principalAmount: paymentSplit.principalAmount,
+        interestAmount: paymentSplit.interestAmount,
+        paidAt: params.transactionAt
+      }
+    });
+
+    await params.tx.debt.update({
+      where: { id: debt.id },
+      data: {
+        currentAmount: Math.max(0, debt.currentAmount.toNumber() - paymentSplit.principalAmount)
+      }
+    });
+
+    await params.tx.transaction.create({
+      data: {
+        userId: params.userId,
+        description: `Abono a deuda: ${debt.name}`,
+        amount,
+        type: "EXPENSE",
+        category: "Deudas",
+        paymentMethod: "BANK_TRANSFER",
+        transactionAt: params.transactionAt
+      }
+    });
+  }
 }
 
 export async function registerAction(formData: FormData) {
@@ -192,18 +279,32 @@ export async function createTransactionAction(formData: FormData) {
     redirectWithFeedback(redirectTab, "success", `Movimiento guardado: ${requiredString(formData.get("description"))}.`);
   }
 
-  await prisma.transaction.create({
-    data: {
-      user: {
-        connect: { id: user.id }
-      },
-      description: requiredString(formData.get("description")),
-      amount,
-      type: transactionType,
-      category: requiredString(formData.get("category")),
-      paymentMethod,
-      installmentCount: installmentCount > 0 ? installmentCount : null,
-      transactionAt
+  const description = requiredString(formData.get("description"));
+  const category = requiredString(formData.get("category"));
+
+  await prisma.$transaction(async (tx) => {
+    await tx.transaction.create({
+      data: {
+        user: {
+          connect: { id: user.id }
+        },
+        description,
+        amount,
+        type: transactionType,
+        category,
+        paymentMethod,
+        installmentCount: installmentCount > 0 ? installmentCount : null,
+        transactionAt
+      }
+    });
+
+    if (transactionType === "INCOME" && category === "Nomina") {
+      await applyPayrollAutopayForIncome({
+        tx,
+        userId: user.id,
+        transactionAt,
+        description
+      });
     }
   });
 
@@ -214,7 +315,7 @@ export async function createTransactionAction(formData: FormData) {
     amount
   });
 
-  redirectWithFeedback(redirectTab, "success", `Movimiento guardado: ${requiredString(formData.get("description"))}.`);
+  redirectWithFeedback(redirectTab, "success", `Movimiento guardado: ${description}.`);
 }
 
 export async function updateTransactionAction(formData: FormData) {
@@ -337,11 +438,17 @@ export async function createDebtAction(formData: FormData) {
   const annualEffectiveRate = parseAmount(formData.get("annualEffectiveRate"));
   const creditLimit = parseAmount(formData.get("creditLimit"));
   const minimumPaymentAmount = parseAmount(formData.get("minimumPaymentAmount"));
+  const cashbackPercent = parseAmount(formData.get("cashbackPercent"));
   const installmentCount = Number(formData.get("installmentCount") || 0);
   const dueDay = Number(formData.get("dueDayOfMonth") || 0);
   const statementDay = Number(formData.get("statementDayOfMonth") || 0);
   const statementDayPurchasesToNextCycle =
     requiredString(formData.get("statementDayPurchasesToNextCycle")) === "true";
+  const firstPaymentAtRaw = requiredString(formData.get("firstPaymentAt"));
+  const firstPaymentAt = firstPaymentAtRaw ? parseDateOnly(firstPaymentAtRaw) : null;
+  const payrollAutopayEnabled = checked(formData.get("payrollAutopayEnabled"));
+  const payrollAutopaySource = requiredString(formData.get("payrollAutopaySource")) || null;
+  const cashbackEnabled = checked(formData.get("cashbackEnabled"));
 
   await prisma.debt.create({
     data: {
@@ -352,8 +459,13 @@ export async function createDebtAction(formData: FormData) {
       currentAmount,
       installmentCount: installmentCount > 0 ? installmentCount : null,
       startedAt: formData.get("startedAt") ? parseDateOnly(formData.get("startedAt")) : null,
+      firstPaymentAt,
       annualEffectiveRate: annualEffectiveRate || null,
       monthlyPayment: monthlyPayment || null,
+      payrollAutopayEnabled,
+      payrollAutopaySource: payrollAutopayEnabled ? payrollAutopaySource : null,
+      cashbackEnabled,
+      cashbackPercent: requestedType === "CREDIT_CARD" && cashbackEnabled ? cashbackPercent || null : null,
       creditLimit: creditLimit || null,
       minimumPaymentAmount: minimumPaymentAmount || null,
       dueDayOfMonth: dueDay || null,
@@ -385,6 +497,7 @@ export async function updateDebtAction(formData: FormData) {
   const annualEffectiveRate = parseNullableAmount(formData.get("annualEffectiveRate"));
   const creditLimit = parseNullableAmount(formData.get("creditLimit"));
   const minimumPaymentAmount = parseNullableAmount(formData.get("minimumPaymentAmount"));
+  const cashbackPercent = parseNullableAmount(formData.get("cashbackPercent"));
   const installmentCount = Number(formData.get("installmentCount") || 0);
   const dueDay = Number(formData.get("dueDayOfMonth") || 0);
   const statementDay = Number(formData.get("statementDayOfMonth") || 0);
@@ -392,6 +505,11 @@ export async function updateDebtAction(formData: FormData) {
     requiredString(formData.get("statementDayPurchasesToNextCycle")) === "true";
   const startedAtRaw = requiredString(formData.get("startedAt"));
   const startedAt = startedAtRaw ? parseDateOnly(startedAtRaw) : null;
+  const firstPaymentAtRaw = requiredString(formData.get("firstPaymentAt"));
+  const firstPaymentAt = firstPaymentAtRaw ? parseDateOnly(firstPaymentAtRaw) : null;
+  const payrollAutopayEnabled = checked(formData.get("payrollAutopayEnabled"));
+  const payrollAutopaySource = requiredString(formData.get("payrollAutopaySource")) || null;
+  const cashbackEnabled = checked(formData.get("cashbackEnabled"));
 
   await prisma.debt.updateMany({
     where: { id: debtId, userId: user.id },
@@ -402,8 +520,13 @@ export async function updateDebtAction(formData: FormData) {
       currentAmount,
       installmentCount: installmentCount > 0 ? installmentCount : null,
       startedAt,
+      firstPaymentAt,
       annualEffectiveRate,
       monthlyPayment,
+      payrollAutopayEnabled,
+      payrollAutopaySource: payrollAutopayEnabled ? payrollAutopaySource : null,
+      cashbackEnabled,
+      cashbackPercent: requestedType === "CREDIT_CARD" && cashbackEnabled ? cashbackPercent : null,
       creditLimit,
       minimumPaymentAmount,
       dueDayOfMonth: dueDay || null,

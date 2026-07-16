@@ -3,6 +3,7 @@ import { AnalysisPanel } from "@/components/analysis-panel";
 import { LogoutButton } from "@/components/auth-client-controls";
 import { CreditCardStatements } from "@/components/credit-card-statements";
 import { DebtCard } from "@/components/debt-card";
+import { DebtPaymentSchedule } from "@/components/debt-payment-schedule";
 import { DebtSimulator } from "@/components/debt-simulator";
 import {
   BillingCycleForm,
@@ -372,14 +373,18 @@ export default async function Home({
           >
             <CsvTransactionsTools />
           </SectionCard>
+        </section>
+      ) : null}
 
+      {activeTab === "recurring" ? (
+        <section className="grid-layout dashboard-grid">
           <SectionCard
-            id="tx-recurrentes"
             kicker="Recurrencia"
             title="Movimientos que se repiten cada mes"
+            icon="🔁"
             subtitle="Ideal para suscripciones, arriendo o ingresos fijos. Aplica una vez al mes cuando corresponda."
             wide
-            className="scroll-panel-target"
+            className="panel-highlight"
           >
             <RecurringTransactionsPanel
               items={data.recurringTemplates}
@@ -388,22 +393,21 @@ export default async function Home({
                 .map((d) => ({ id: d.id, name: d.name }))}
             />
           </SectionCard>
+
+          <SectionCard kicker="Uso" title="Cómo te ayuda esta pestaña">
+            <ul className="plain-list">
+              <li>Centraliza suscripciones, pagos mensuales e ingresos repetitivos en un solo lugar.</li>
+              <li>Evita registrar manualmente el mismo movimiento todos los meses.</li>
+              <li>Sirve para proyectar con más claridad tus gastos fijos antes de que arranque el ciclo.</li>
+            </ul>
+          </SectionCard>
         </section>
       ) : null}
 
       {activeTab === "analysis" ? (
         <section className="grid-layout dashboard-grid">
           <SectionCard kicker="Análisis" title="Radiografía del ciclo actual" icon="📈" subtitle="Distribución, tendencias y señales para tomar decisiones." wide className="panel-highlight">
-            <AnalysisPanel analytics={data.analytics} />
-          </SectionCard>
-
-          <SectionCard kicker="Lectura" title="Cómo usar este módulo">
-            <ul className="plain-list">
-              <li>Categoría dominante te muestra en qué se está concentrando tu gasto del ciclo.</li>
-              <li>Método de pago dominante ayuda a detectar cuando dependes demasiado de una tarjeta o canal.</li>
-              <li>El top de gastos te deja ubicar rápido los egresos que más te movieron el balance.</li>
-              <li>La tendencia de 6 meses sirve para ver si el gasto viene subiendo o bajando en el tiempo.</li>
-            </ul>
+            <AnalysisPanel analytics={data.analytics} debts={data.debts} summary={data.summary} />
           </SectionCard>
         </section>
       ) : null}
@@ -468,12 +472,39 @@ export default async function Home({
             <DebtSimulator />
           </SectionCard>
 
+          <SectionCard
+            kicker="Plan de pagos"
+            title="Consulta dinámica por deuda"
+            icon="📅"
+            subtitle="Elige una deuda y revisa la proyección cuota por cuota con capital, interés y saldo."
+            wide
+            className="panel-highlight"
+          >
+            <DebtPaymentSchedule
+              debts={data.debts.map((debt) => ({
+                id: debt.id,
+                name: debt.name,
+                type: debt.type,
+                currentAmount: debt.currentAmount,
+                annualEffectiveRate: debt.annualEffectiveRate,
+                monthlyPayment: debt.monthlyPayment,
+                minimumPaymentAmount: debt.minimumPaymentAmount,
+                startedAt: debt.startedAt,
+                firstPaymentAt: debt.firstPaymentAt,
+                dueDayOfMonth: debt.dueDayOfMonth,
+                installmentCount: debt.installmentCount,
+                payrollAutopayEnabled: debt.payrollAutopayEnabled
+              }))}
+            />
+          </SectionCard>
+
           <SectionCard kicker="Lectura" title="Cómo interpretar la proyección">
             <ul className="plain-list">
               <li>La primera columna representa la deuda con tu cuota actual.</li>
               <li>La segunda muestra el efecto de subir la cuota mensual.</li>
               <li>La fecha estimada de salida es una proyección basada en la fecha de inicio.</li>
               <li>Si la cuota no alcanza para cubrir el interés del mes, el simulador te lo avisa.</li>
+              <li>El plan de pagos parte del saldo actual que tengas registrado en la deuda.</li>
             </ul>
           </SectionCard>
 

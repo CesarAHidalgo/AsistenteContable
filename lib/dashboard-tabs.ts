@@ -2,6 +2,7 @@
 export const dashboardTabs = [
   { id: "overview", label: "Resumen", href: "/resumen" },
   { id: "transactions", label: "Movimientos", href: "/movimientos" },
+  { id: "recurring", label: "Recurrentes", href: "/recurrentes" },
   { id: "analysis", label: "Análisis", href: "/analisis" },
   { id: "debts", label: "Deudas", href: "/deudas" },
   { id: "cards", label: "Tarjetas", href: "/tarjetas" },
