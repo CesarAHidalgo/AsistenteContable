@@ -135,8 +135,13 @@ model Debt {
   currentAmount  Decimal       @db.Decimal(12, 2)
   installmentCount Int?
   startedAt      DateTime?
+  firstPaymentAt DateTime?
   annualEffectiveRate Decimal? @db.Decimal(8, 4)
   monthlyPayment Decimal?      @db.Decimal(12, 2)
+  payrollAutopayEnabled Boolean @default(false)
+  payrollAutopaySource String?
+  cashbackEnabled Boolean      @default(false)
+  cashbackPercent Decimal?     @db.Decimal(5, 2)
   creditLimit    Decimal?      @db.Decimal(12, 2)
   minimumPaymentAmount Decimal? @db.Decimal(12, 2)
   dueDayOfMonth  Int?

@@ -455,8 +455,13 @@ export async function getDashboardData(
         currentAmount: item.currentAmount.toNumber(),
         installmentCount: item.installmentCount,
         startedAt: item.startedAt,
+        firstPaymentAt: item.firstPaymentAt,
         annualEffectiveRate: decimalToNumber(item.annualEffectiveRate),
         monthlyPayment: normalizedMonthlyPayment,
+        payrollAutopayEnabled: item.payrollAutopayEnabled,
+        payrollAutopaySource: item.payrollAutopaySource,
+        cashbackEnabled: item.cashbackEnabled,
+        cashbackPercent: decimalToNumber(item.cashbackPercent),
         creditLimit: decimalToNumber(item.creditLimit),
         minimumPaymentAmount: normalizedMinimumPayment,
         statementDayPurchasesToNextCycle: item.statementDayPurchasesToNextCycle,
@@ -483,6 +488,8 @@ export async function getDashboardData(
             ? buildCreditCardPurchaseSummary(normalizedTransactions, {
                 basePayment: normalizedMonthlyPayment ?? undefined,
                 bankMinimumPayment: normalizedMinimumPayment ?? undefined,
+                cashbackEnabled: item.cashbackEnabled,
+                cashbackPercent: decimalToNumber(item.cashbackPercent) ?? 0,
                 referenceStatementDate: cardCycleInfo?.nextStatementDate ?? null,
                 referencePaymentDate: cardCycleInfo?.nextPaymentDate ?? null
               }, item.payments.map((payment) => ({
@@ -501,6 +508,7 @@ export async function getDashboardData(
           currentAmount: item.currentAmount.toNumber(),
           installmentCount: item.installmentCount,
           startedAt: item.startedAt,
+          firstPaymentAt: item.firstPaymentAt,
           annualEffectiveRate: decimalToNumber(item.annualEffectiveRate),
           monthlyPayment: normalizedMonthlyPayment,
           creditLimit: decimalToNumber(item.creditLimit),
@@ -692,6 +700,8 @@ function buildCreditCardPurchaseSummary(
   options: {
     basePayment?: number;
     bankMinimumPayment?: number;
+    cashbackEnabled?: boolean;
+    cashbackPercent?: number;
     referenceStatementDate: Date | null;
     referencePaymentDate: Date | null;
   },
@@ -720,6 +730,13 @@ function buildCreditCardPurchaseSummary(
         0
       )
     : 0;
+  const currentStatementPurchaseVolume = referenceStatementDate
+    ? purchasePlans.reduce((sum, purchase) => {
+        return purchase.statementDate && sameStatementMonth(purchase.statementDate, referenceStatementDate)
+          ? sum + purchase.amount
+          : sum;
+      }, 0)
+    : 0;
   const nextStatementTotal = nextStatementDate
     ? purchasePlans.reduce(
         (sum, purchase) => sum + getScheduledAmountForStatement(purchase.installments, nextStatementDate),
@@ -728,6 +745,8 @@ function buildCreditCardPurchaseSummary(
     : 0;
   const basePayment = options.basePayment ?? 0;
   const bankMinimumPayment = options.bankMinimumPayment ?? 0;
+  const cashbackEnabled = options.cashbackEnabled ?? false;
+  const cashbackPercent = cashbackEnabled ? options.cashbackPercent ?? 0 : 0;
   const currentCyclePayments =
     previousPaymentDate && referencePaymentDate
       ? payments.reduce((sum, payment) => {
@@ -741,6 +760,12 @@ function buildCreditCardPurchaseSummary(
       : 0;
   const projectedCurrentPayment = basePayment + currentStatementTotal;
   const currentStatementOutstanding = Math.max(0, projectedCurrentPayment - currentCyclePayments);
+  const currentStatementCashback = cashbackEnabled
+    ? roundCurrency((currentStatementPurchaseVolume * cashbackPercent) / 100)
+    : 0;
+  const totalEstimatedCashback = cashbackEnabled
+    ? roundCurrency((purchases.reduce((sum, transaction) => sum + transaction.amount, 0) * cashbackPercent) / 100)
+    : 0;
   const alerts = [
     bankMinimumPayment > 0 && projectedCurrentPayment > bankMinimumPayment
       ? {
@@ -777,6 +802,10 @@ function buildCreditCardPurchaseSummary(
     currentStatementOutstanding,
     basePayment,
     bankMinimumPayment,
+    cashbackEnabled,
+    cashbackPercent,
+    currentStatementCashback,
+    totalEstimatedCashback,
     projectedCurrentPayment,
     nextProjectedPayment: basePayment + nextStatementTotal,
     latestPurchases: purchasePlans.slice(0, 5),
@@ -856,6 +885,10 @@ function formatAmount(value: number) {
     currency: "COP",
     maximumFractionDigits: 0
   }).format(value);
+}
+
+function roundCurrency(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 function formatDateLabel(value: Date) {

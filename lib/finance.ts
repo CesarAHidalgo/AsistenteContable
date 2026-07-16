@@ -12,6 +12,7 @@ type DebtLike = {
   statementDayOfMonth?: number | null;
   statementDayPurchasesToNextCycle?: boolean;
   startedAt?: Date | string | null;
+  firstPaymentAt?: Date | string | null;
 };
 
 export function annualEffectiveToMonthlyRate(annualRate: number | null) {
@@ -122,6 +123,7 @@ export function calculateDebtProjection(debt: DebtLike) {
       : null;
   const installmentPlan = getInstallmentPlanInfo(
     debt.startedAt,
+    debt.firstPaymentAt ?? null,
     debt.dueDayOfMonth ?? null,
     debt.installmentCount ?? null
   );
@@ -260,6 +262,174 @@ export function runDebtSimulation(input: {
   };
 }
 
+export function buildDebtPaymentSchedule(input: {
+  type: DebtType;
+  balance: number;
+  annualEffectiveRate: number | null;
+  monthlyPayment: number | null;
+  minimumPaymentAmount?: number | null;
+  startedAt?: Date | string | null;
+  firstPaymentAt?: Date | string | null;
+  dueDayOfMonth?: number | null;
+  installmentCount?: number | null;
+  payrollAutopayEnabled?: boolean;
+}) {
+  if (input.balance <= 0) {
+    return {
+      rows: [],
+      summary: {
+        totalInterest: 0,
+        totalPrincipal: 0,
+        totalPayment: 0,
+        payoffMonths: 0
+      },
+      mode: "empty" as const
+    };
+  }
+
+  if (input.type === "CREDIT_CARD") {
+    return {
+      rows: [],
+      summary: {
+        totalInterest: 0,
+        totalPrincipal: 0,
+        totalPayment: 0,
+        payoffMonths: null
+      },
+      mode: "unsupported" as const
+    };
+  }
+
+  const paymentBase =
+    input.type === "FIXED_INSTALLMENT"
+      ? input.monthlyPayment ?? 0
+      : estimateMinimumPayment(
+          {
+            currentAmount: input.balance,
+            minimumPaymentAmount: input.minimumPaymentAmount ?? null,
+            type: input.type
+          },
+          0
+        );
+
+  if (paymentBase <= 0) {
+    return {
+      rows: [],
+      summary: {
+        totalInterest: 0,
+        totalPrincipal: 0,
+        totalPayment: 0,
+        payoffMonths: null
+      },
+      mode: "insufficient-payment" as const
+    };
+  }
+
+  const monthlyRate = annualEffectiveToMonthlyRate(input.annualEffectiveRate);
+  const installmentPlan = getInstallmentPlanInfo(
+    input.startedAt,
+    input.firstPaymentAt ?? null,
+    input.dueDayOfMonth ?? null,
+    input.installmentCount ?? null
+  );
+  const payrollCoveredCurrentInstallment =
+    Boolean(input.payrollAutopayEnabled) &&
+    Boolean(input.dueDayOfMonth) &&
+    shouldTreatCurrentMonthInstallmentAsPaid(new Date(), input.dueDayOfMonth ?? null);
+  const installmentOffset = payrollCoveredCurrentInstallment ? 1 : 0;
+  const firstUpcomingPaymentDate =
+    installmentPlan && installmentPlan.remainingInstallments > 0
+      ? addMonthsClamped(
+          installmentPlan.firstPaymentDate,
+          installmentPlan.paidInstallments + installmentOffset,
+          true
+        )
+      : getFirstPaymentDate(
+          input.startedAt ? new Date(input.startedAt) : new Date(),
+          input.firstPaymentAt ? new Date(input.firstPaymentAt) : null,
+          input.dueDayOfMonth ?? null
+        );
+  const baseInstallmentNumber = (installmentPlan?.paidInstallments ?? 0) + installmentOffset;
+
+  const rows: Array<{
+    installmentNumber: number;
+    paymentDate: Date;
+    openingBalance: number;
+    paymentAmount: number;
+    interestAmount: number;
+    principalAmount: number;
+    closingBalance: number;
+  }> = [];
+
+  let remaining = roundCurrency(Math.max(0, input.balance));
+  let totalInterest = 0;
+  let totalPrincipal = 0;
+  let totalPayment = 0;
+  let monthOffset = 0;
+  const maxRows = installmentPlan?.remainingInstallments && installmentPlan.remainingInstallments > 0
+    ? Math.min(600, Math.max(installmentPlan.remainingInstallments - installmentOffset, 1))
+    : 600;
+
+  while (remaining > 0 && monthOffset < maxRows) {
+    const openingBalance = remaining;
+    const interestAmount = roundCurrency(openingBalance * monthlyRate);
+    const scheduledPayment =
+      input.type === "REVOLVING_CREDIT"
+        ? estimateMinimumPayment(
+            {
+              currentAmount: openingBalance,
+              minimumPaymentAmount: input.minimumPaymentAmount ?? null,
+              type: input.type
+            },
+            interestAmount
+          )
+        : paymentBase;
+    const normalizedPayment = roundCurrency(Math.min(openingBalance + interestAmount, scheduledPayment));
+    const principalAmount = roundCurrency(Math.max(0, normalizedPayment - interestAmount));
+
+    if (principalAmount <= 0) {
+      return {
+        rows,
+        summary: {
+          totalInterest: roundCurrency(totalInterest),
+          totalPrincipal: roundCurrency(totalPrincipal),
+          totalPayment: roundCurrency(totalPayment),
+          payoffMonths: null
+        },
+        mode: "insufficient-payment" as const
+      };
+    }
+
+    remaining = roundCurrency(Math.max(0, openingBalance - principalAmount));
+    totalInterest += interestAmount;
+    totalPrincipal += principalAmount;
+    totalPayment += normalizedPayment;
+
+    rows.push({
+      installmentNumber: baseInstallmentNumber + monthOffset + 1,
+      paymentDate: addMonthsClamped(firstUpcomingPaymentDate, monthOffset, true),
+      openingBalance,
+      paymentAmount: normalizedPayment,
+      interestAmount,
+      principalAmount,
+      closingBalance: remaining
+    });
+
+    monthOffset += 1;
+  }
+
+  return {
+    rows,
+    summary: {
+      totalInterest: roundCurrency(totalInterest),
+      totalPrincipal: roundCurrency(totalPrincipal),
+      totalPayment: roundCurrency(totalPayment),
+      payoffMonths: rows.length
+    },
+    mode: "ok" as const
+  };
+}
+
 function estimatePayoffDate(startedAt: Date | string | null | undefined, payoffMonths: number | null) {
   if (!startedAt || !payoffMonths) {
     return null;
@@ -381,6 +551,7 @@ function getPaymentDateForStatement(statementDate: Date, dueDayOfMonth: number) 
 
 function getInstallmentPlanInfo(
   startedAt: Date | string | null | undefined,
+  firstPaymentAt: Date | string | null | undefined,
   dueDayOfMonth: number | null,
   installmentCount: number | null,
   referenceDate = new Date()
@@ -394,7 +565,7 @@ function getInstallmentPlanInfo(
     return null;
   }
 
-  const firstPaymentDate = getFirstPaymentDate(startDate, dueDayOfMonth);
+  const firstPaymentDate = getFirstPaymentDate(startDate, firstPaymentAt ? new Date(firstPaymentAt) : null, dueDayOfMonth);
   const finalPaymentDate = addMonthsClamped(firstPaymentDate, installmentCount - 1, true);
 
   let paidInstallments = 0;
@@ -414,7 +585,17 @@ function getInstallmentPlanInfo(
   };
 }
 
-function getFirstPaymentDate(startDate: Date, dueDayOfMonth: number | null) {
+function getFirstPaymentDate(
+  startDate: Date,
+  explicitFirstPaymentDate: Date | null,
+  dueDayOfMonth: number | null
+) {
+  if (explicitFirstPaymentDate && !Number.isNaN(explicitFirstPaymentDate.getTime())) {
+    const date = new Date(explicitFirstPaymentDate);
+    date.setHours(23, 59, 59, 999);
+    return date;
+  }
+
   if (!dueDayOfMonth) {
     const date = new Date(startDate);
     date.setHours(23, 59, 59, 999);
@@ -433,4 +614,13 @@ function getFirstPaymentDate(startDate: Date, dueDayOfMonth: number | null) {
 
   paymentDate.setHours(23, 59, 59, 999);
   return paymentDate;
+}
+
+function shouldTreatCurrentMonthInstallmentAsPaid(referenceDate: Date, dueDayOfMonth: number | null) {
+  if (!dueDayOfMonth) {
+    return false;
+  }
+
+  const normalizedReferenceDate = getCalendarDate(referenceDate);
+  return normalizedReferenceDate.getDate() < dueDayOfMonth;
 }

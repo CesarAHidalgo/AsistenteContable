@@ -23,6 +23,7 @@ pnpm-debug.log*
 coverage/
 dist/
 *.dump
+*.tsbuildinfo
 
 # Prisma local artifacts
 prisma/dev.db

@@ -54,6 +54,7 @@ export function categoryLabel(value: string) {
     Servicios: "🧾 Servicios",
     Mercado: "🛒 Mercado",
     Restaurantes: "🍽️ Restaurantes",
+    Subscripciones: "📺 Subscripciones",
     Transporte: "🚌 Transporte",
     Combustible: "⛽ Combustible",
     Salud: "🩺 Salud",

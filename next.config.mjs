@@ -7,6 +7,7 @@ const nextConfig = {
     return [
       { source: "/resumen", destination: "/?tab=overview" },
       { source: "/movimientos", destination: "/?tab=transactions" },
+      { source: "/recurrentes", destination: "/?tab=recurring" },
       { source: "/analisis", destination: "/?tab=analysis" },
       { source: "/deudas", destination: "/?tab=debts" },
       { source: "/tarjetas", destination: "/?tab=cards" },

@@ -20,6 +20,7 @@ function RecurringCategorySelect({ name }: { name: string }) {
     "Servicios",
     "Mercado",
     "Restaurantes",
+    "Subscripciones",
     "Transporte",
     "Combustible",
     "Salud",

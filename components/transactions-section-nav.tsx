@@ -2,8 +2,7 @@ export function TransactionsSectionNav() {
   const links = [
     { href: "#tx-nuevo", label: "Nuevo" },
     { href: "#tx-historial", label: "Historial" },
-    { href: "#tx-csv", label: "CSV" },
-    { href: "#tx-recurrentes", label: "Recurrentes" }
+    { href: "#tx-csv", label: "CSV" }
   ] as const;
 
   return (

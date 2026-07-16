@@ -10,6 +10,8 @@ type CreditCardDebt = {
   creditLimit: number | null;
   monthlyPayment: number | null;
   minimumPaymentAmount: number | null;
+  cashbackEnabled: boolean;
+  cashbackPercent: number | null;
   dueDayOfMonth: number | null;
   statementDayOfMonth: number | null;
   statementDayPurchasesToNextCycle: boolean;
@@ -38,6 +40,10 @@ type CreditCardDebt = {
     currentStatementOutstanding: number;
     basePayment: number;
     bankMinimumPayment: number;
+    cashbackEnabled: boolean;
+    cashbackPercent: number;
+    currentStatementCashback: number;
+    totalEstimatedCashback: number;
     projectedCurrentPayment: number;
     nextProjectedPayment: number;
     alerts: Array<{
@@ -85,8 +91,8 @@ export function CreditCardStatements({
   return (
     <div className="stack-list statement-stack">
       {debts.map((debt) => (
-        <article key={debt.id} className="statement-card statement-card-hero">
-          <header className="statement-card-header">
+        <details key={debt.id} className="statement-card statement-card-hero statement-card-collapsible">
+          <summary className="statement-card-header statement-card-summary">
             <div>
               <p className="section-kicker">Extracto tarjeta</p>
               <h3>{debt.name}</h3>
@@ -120,13 +126,41 @@ export function CreditCardStatements({
                   {debt.cardPurchaseSummary?.currentStatementOutstanding
                     ? "Aún hay presión sobre el corte vigente"
                     : "Tu corte actual va cubierto"}
-                </small>
-              </div>
+                  </small>
+                </div>
+              {debt.cardPurchaseSummary?.cashbackEnabled ? (
+                <div className="statement-metric">
+                  <span className="detail-label">Cashback corte actual</span>
+                  <strong>{formatCurrency(debt.cardPurchaseSummary.currentStatementCashback)}</strong>
+                  <small>{debt.cardPurchaseSummary.cashbackPercent}% sobre las compras que entraron al corte</small>
+                </div>
+              ) : null}
             </div>
-          </header>
+          </summary>
 
           {debt.cardPurchaseSummary ? (
             <>
+              <div className="statement-grid statement-grid-compact">
+                <div className="snapshot-card">
+                  <span className="detail-label">Facturado corte actual</span>
+                  <strong>{formatCurrency(debt.cardPurchaseSummary.currentStatementTotal)}</strong>
+                </div>
+                <div className="snapshot-card">
+                  <span className="detail-label">Facturado próximo corte</span>
+                  <strong>{formatCurrency(debt.cardPurchaseSummary.nextStatementTotal)}</strong>
+                </div>
+                <div className="snapshot-card">
+                  <span className="detail-label">Pagado a este corte</span>
+                  <strong>{formatCurrency(debt.cardPurchaseSummary.currentCyclePayments)}</strong>
+                </div>
+                <div className="snapshot-card">
+                  <span className="detail-label">Mínimo próximo corte</span>
+                  <strong>{formatCurrency(debt.cardPurchaseSummary.nextProjectedPayment)}</strong>
+                </div>
+              </div>
+
+              <details className="inline-editor statement-section-toggle">
+                <summary>Ver corte actual y acciones</summary>
               {debt.cardPurchaseSummary.referenceStatementDate ? (
                 <form action={closeCreditCardStatementAction} className="inline-form statement-close-form">
                   <input type="hidden" name="redirectTab" value="cards" />
@@ -157,84 +191,98 @@ export function CreditCardStatements({
                   />
                 </form>
               ) : null}
+                <div className="statement-grid">
+                  <div className="snapshot-card">
+                    <span className="detail-label">Base configurada</span>
+                    <strong>{formatCurrency(debt.cardPurchaseSummary.basePayment)}</strong>
+                  </div>
+                  <div className="snapshot-card">
+                    <span className="detail-label">Mínimo informado banco</span>
+                    <strong>{formatCurrency(debt.cardPurchaseSummary.bankMinimumPayment)}</strong>
+                  </div>
+                  <div className="snapshot-card">
+                    <span className="detail-label">Pendiente del corte</span>
+                    <strong>{formatCurrency(debt.cardPurchaseSummary.currentStatementOutstanding)}</strong>
+                  </div>
+                  <div className="snapshot-card">
+                    <span className="detail-label">Pago proyectado corte actual</span>
+                    <strong>{formatCurrency(debt.cardPurchaseSummary.projectedCurrentPayment)}</strong>
+                  </div>
+                {debt.cardPurchaseSummary.cashbackEnabled ? (
+                  <div className="snapshot-card">
+                    <span className="detail-label">Cashback acumulado estimado</span>
+                    <strong>{formatCurrency(debt.cardPurchaseSummary.totalEstimatedCashback)}</strong>
+                  </div>
+                ) : null}
+                </div>
 
-              <div className="statement-grid">
-                <div className="snapshot-card">
-                  <span className="detail-label">Facturado corte actual</span>
-                  <strong>{formatCurrency(debt.cardPurchaseSummary.currentStatementTotal)}</strong>
-                </div>
-                <div className="snapshot-card">
-                  <span className="detail-label">Facturado próximo corte</span>
-                  <strong>{formatCurrency(debt.cardPurchaseSummary.nextStatementTotal)}</strong>
-                </div>
-                <div className="snapshot-card">
-                  <span className="detail-label">Pagado a este corte</span>
-                  <strong>{formatCurrency(debt.cardPurchaseSummary.currentCyclePayments)}</strong>
-                </div>
-                <div className="snapshot-card">
-                  <span className="detail-label">Mínimo próximo corte</span>
-                  <strong>{formatCurrency(debt.cardPurchaseSummary.nextProjectedPayment)}</strong>
-                </div>
-              </div>
-
-              <div className="info-lines">
-                <p className="meta">
-                  {formatCurrency(debt.cardPurchaseSummary.basePayment)} base +{" "}
-                  {formatCurrency(debt.cardPurchaseSummary.currentStatementTotal)} del corte ={" "}
-                  {formatCurrency(debt.cardPurchaseSummary.projectedCurrentPayment)}
-                </p>
-                <p className="meta">
-                  Ventana de pago actual:{" "}
-                  {debt.cardPurchaseSummary.previousPaymentDate
-                    ? formatDate(debt.cardPurchaseSummary.previousPaymentDate)
-                    : "-"}{" "}
-                  a{" "}
-                  {debt.cardPurchaseSummary.referencePaymentDate
-                    ? formatDate(debt.cardPurchaseSummary.referencePaymentDate)
-                    : "-"}
-                </p>
-                {debt.cardPurchaseSummary.alerts.map((alert, index) => (
-                  <p key={`${alert.message}-${index}`} className={`meta ${alert.tone === "warning" ? "negative-text" : ""}`}>
-                    {alert.message}
+                <div className="info-lines">
+                  <p className="meta">
+                    {formatCurrency(debt.cardPurchaseSummary.basePayment)} base +{" "}
+                    {formatCurrency(debt.cardPurchaseSummary.currentStatementTotal)} del corte ={" "}
+                    {formatCurrency(debt.cardPurchaseSummary.projectedCurrentPayment)}
                   </p>
-                ))}
-              </div>
-
-              <section className="statement-history-card">
-                <div className="panel-header">
-                  <div>
-                    <h4>Historial de cortes cerrados</h4>
-                    <p className="meta">Aquí queda congelado lo que realmente tenía ese extracto al cerrarlo.</p>
-                  </div>
+                  <p className="meta">
+                    Ventana de pago actual:{" "}
+                    {debt.cardPurchaseSummary.previousPaymentDate
+                      ? formatDate(debt.cardPurchaseSummary.previousPaymentDate)
+                      : "-"}{" "}
+                    a{" "}
+                    {debt.cardPurchaseSummary.referencePaymentDate
+                      ? formatDate(debt.cardPurchaseSummary.referencePaymentDate)
+                      : "-"}
+                  </p>
+                  {debt.cardPurchaseSummary.alerts.map((alert, index) => (
+                    <p
+                      key={`${alert.message}-${index}`}
+                      className={`meta ${alert.tone === "warning" ? "negative-text" : ""}`}
+                    >
+                      {alert.message}
+                    </p>
+                  ))}
                 </div>
-                {debt.statementSnapshots.length === 0 ? (
-                  <p className="empty-state">Todavía no has cerrado cortes para esta tarjeta.</p>
-                ) : (
-                  <div className="stack-list">
-                    {debt.statementSnapshots.map((snapshot) => (
-                      <article key={snapshot.id} className="analysis-list-row">
-                        <div>
-                          <strong>
-                            Corte {formatDate(snapshot.statementDate)}
-                            {snapshot.paymentDueDate ? ` · pago ${formatDate(snapshot.paymentDueDate)}` : ""}
-                          </strong>
-                          <p className="meta">
-                            {snapshot.purchaseCount} compra(s) · cerrado {formatDate(snapshot.closedAt)}
-                          </p>
-                          <p className="meta">
-                            Facturado {formatCurrency(snapshot.statementTotal)} · pagado{" "}
-                            {formatCurrency(snapshot.paidAmount)} · pendiente{" "}
-                            {formatCurrency(snapshot.outstandingAmount)}
-                          </p>
-                        </div>
-                        <strong>{formatCurrency(snapshot.projectedPayment)}</strong>
-                      </article>
-                    ))}
-                  </div>
-                )}
-              </section>
+              </details>
 
-              <div className="stack-list">
+              <details className="inline-editor statement-section-toggle">
+                <summary>Historial de cortes cerrados</summary>
+                <section className="statement-history-card">
+                  <div className="panel-header">
+                    <div>
+                      <h4>Historial de cortes cerrados</h4>
+                      <p className="meta">Aquí queda congelado lo que realmente tenía ese extracto al cerrarlo.</p>
+                    </div>
+                  </div>
+                  {debt.statementSnapshots.length === 0 ? (
+                    <p className="empty-state">Todavía no has cerrado cortes para esta tarjeta.</p>
+                  ) : (
+                    <div className="stack-list">
+                      {debt.statementSnapshots.map((snapshot) => (
+                        <article key={snapshot.id} className="analysis-list-row">
+                          <div>
+                            <strong>
+                              Corte {formatDate(snapshot.statementDate)}
+                              {snapshot.paymentDueDate ? ` · pago ${formatDate(snapshot.paymentDueDate)}` : ""}
+                            </strong>
+                            <p className="meta">
+                              {snapshot.purchaseCount} compra(s) · cerrado {formatDate(snapshot.closedAt)}
+                            </p>
+                            <p className="meta">
+                              Facturado {formatCurrency(snapshot.statementTotal)} · pagado{" "}
+                              {formatCurrency(snapshot.paidAmount)} · pendiente{" "}
+                              {formatCurrency(snapshot.outstandingAmount)}
+                            </p>
+                          </div>
+                          <strong>{formatCurrency(snapshot.projectedPayment)}</strong>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </details>
+
+              <details className="inline-editor statement-section-toggle">
+                <summary>Compras del extracto</summary>
+                <div className="stack-list info-lines">
                 {debt.cardPurchaseSummary.purchases.map((purchase) => (
                   <details key={purchase.id} className="item-card statement-purchase-card">
                     <summary className="statement-purchase-summary">
@@ -349,12 +397,13 @@ export function CreditCardStatements({
                     </div>
                   </details>
                 ))}
-              </div>
+                </div>
+              </details>
             </>
           ) : (
             <p className="empty-state">Esta tarjeta aún no tiene compras registradas para armar el extracto.</p>
           )}
-        </article>
+        </details>
       ))}
     </div>
   );

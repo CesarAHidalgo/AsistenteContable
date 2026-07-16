@@ -8,6 +8,7 @@ const categories = [
   "Servicios",
   "Mercado",
   "Restaurantes",
+  "Subscripciones",
   "Transporte",
   "Combustible",
   "Salud",
