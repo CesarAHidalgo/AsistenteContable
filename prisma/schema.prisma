@@ -1,6 +1,12 @@
 generator client {
   provider = "prisma-client"
-  output   = "../generated/prisma"
+  output   = "../generated/prisma-node"
+  runtime  = "nodejs"
+}
+
+generator clientCloudflare {
+  provider = "prisma-client"
+  output   = "../generated/prisma-cloudflare"
   runtime  = "cloudflare"
 }
 

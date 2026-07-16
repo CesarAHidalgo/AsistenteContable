@@ -361,6 +361,7 @@ La aplicación quedó preparada para desplegarse también en Cloudflare Workers 
 Notas:
 
 - para Cloudflare productivo conviene usar una `DATABASE_URL` de Neon
+- Prisma genera clientes separados para Node (`Render`/Docker) y Workerd (`Cloudflare`); cada build selecciona el runtime correspondiente
 - el despliegue prepara y deduplica automáticamente el motor WASM de Prisma para importarlo como módulo precompilado
 - `keep_vars` conserva las variables y secretos administrados desde Cloudflare entre despliegues
 - en local, `wrangler dev` usa `.dev.vars`, no `.env`
