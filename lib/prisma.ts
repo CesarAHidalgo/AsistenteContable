@@ -24,10 +24,29 @@ function createPrismaClient() {
   });
 }
 
-export const prisma =
-  global.prismaGlobal ??
-  createPrismaClient();
+function getPrismaClient() {
+  if (global.prismaGlobal) {
+    return global.prismaGlobal;
+  }
 
-if (process.env.NODE_ENV !== "production") {
-  global.prismaGlobal = prisma;
+  const client = createPrismaClient();
+
+  if (process.env.NODE_ENV !== "production") {
+    global.prismaGlobal = client;
+  }
+
+  return client;
 }
+
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    const client = getPrismaClient();
+    const value = Reflect.get(client, prop, client);
+
+    if (typeof value === "function") {
+      return value.bind(client);
+    }
+
+    return value;
+  }
+});
