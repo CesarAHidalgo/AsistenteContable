@@ -3,8 +3,6 @@ import {
   ReminderDeliveryStatus,
   ReminderType
 } from "@/generated/prisma/client";
-import nodemailer from "nodemailer";
-import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 
@@ -28,39 +26,11 @@ function addDays(value: Date, days: number) {
   return next;
 }
 
-function parseBooleanEnv(value: string | undefined) {
-  return value === "true";
-}
-
-function smtpConfig() {
-  const host = process.env.SMTP_HOST?.trim();
-  const port = Number(process.env.SMTP_PORT || 587);
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS?.trim();
-  const from = process.env.SMTP_FROM?.trim();
-
-  if (!host || !user || !pass || !from) {
-    return null;
-  }
-
-  return {
-    host,
-    port,
-    secure: parseBooleanEnv(process.env.SMTP_SECURE),
-    auth: {
-      user,
-      pass
-    },
-    from
-  };
-}
-
 function resendConfig() {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from =
     process.env.EMAIL_FROM?.trim() ||
-    process.env.RESEND_FROM?.trim() ||
-    process.env.SMTP_FROM?.trim();
+    process.env.RESEND_FROM?.trim();
 
   if (!apiKey || !from) {
     return null;
@@ -72,22 +42,44 @@ function resendConfig() {
   };
 }
 
-function createTransporter() {
-  const config = smtpConfig();
+async function sendWithResend({
+  to,
+  subject,
+  text,
+  html
+}: {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}) {
+  const config = resendConfig();
 
   if (!config) {
-    return null;
+    return false;
   }
 
-  return {
-    transporter: nodemailer.createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      auth: config.auth
-    }),
-    from: config.from
-  };
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      from: config.from,
+      to: [to],
+      subject,
+      text,
+      html
+    })
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Resend rechazo el correo (${response.status}): ${details}`);
+  }
+
+  return true;
 }
 
 function whatsappConfig() {
@@ -308,15 +300,7 @@ async function sendEmail(reminder: ReminderWithUser) {
   const text = buildReminderMessage(reminder);
   const html = buildReminderHtml(reminder);
 
-  if (resend) {
-    const client = new Resend(resend.apiKey);
-    await client.emails.send({
-      from: resend.from,
-      to: reminder.user.email,
-      subject,
-      text,
-      html
-    });
+  if (resend && (await sendWithResend({ to: reminder.user.email, subject, text, html }))) {
 
     return {
       status: ReminderDeliveryStatus.SENT,
@@ -324,43 +308,25 @@ async function sendEmail(reminder: ReminderWithUser) {
     };
   }
 
-  const transport = createTransporter();
-
-  if (!transport) {
-    return {
-      status: ReminderDeliveryStatus.SKIPPED,
-      message: "SMTP no configurado"
-    };
-  }
-
-  await transport.transporter.sendMail({
-    from: transport.from,
-    to: reminder.user.email,
-    subject,
-    text,
-    html
-  });
-
   return {
-    status: ReminderDeliveryStatus.SENT,
-    message: `Correo enviado a ${reminder.user.email}`
+    status: ReminderDeliveryStatus.SKIPPED,
+    message: "Resend no configurado"
   };
 }
 
 export function getNotificationChannelStatus(pushSubscriptionCount = 0) {
   const resend = resendConfig();
-  const smtp = smtpConfig();
 
   return {
-    emailConfigured: Boolean(resend || smtp),
-    emailProvider: resend ? "Resend API" : smtp ? "SMTP" : "Sin configurar",
+    emailConfigured: Boolean(resend),
+    emailProvider: resend ? "Resend API" : "Sin configurar",
     pushConfigured: Boolean(pushConfig()),
     whatsappConfigured: Boolean(whatsappConfig()),
     pushSubscriptionCount
   };
 }
 
-export async function verifySmtpConnection() {
+export async function verifyEmailConnection() {
   const resend = resendConfig();
 
   if (resend) {
@@ -370,20 +336,9 @@ export async function verifySmtpConnection() {
     };
   }
 
-  const transport = createTransporter();
-
-  if (!transport) {
-    return {
-      ok: false,
-      message: "SMTP no configurado"
-    };
-  }
-
-  await transport.transporter.verify();
-
   return {
-    ok: true,
-    message: "Conexión SMTP verificada correctamente"
+    ok: false,
+    message: "Resend no configurado"
   };
 }
 
@@ -393,20 +348,20 @@ export async function sendTestEmail(targetEmail: string) {
   const text = [
     "AsistenteContable",
     "",
-    resend ? "Esta es una prueba del canal de correo con Resend." : "Esta es una prueba del canal de correo.",
+    "Esta es una prueba del canal de correo con Resend.",
     `Fecha: ${formatDateTime(sentAt)}`
   ].join("\n");
   const html = buildTestEmailHtml(sentAt);
 
-  if (resend) {
-    const client = new Resend(resend.apiKey);
-    await client.emails.send({
-      from: resend.from,
+  if (
+    resend &&
+    (await sendWithResend({
       to: targetEmail,
       subject: "Prueba de correo de AsistenteContable",
       text,
       html
-    });
+    }))
+  ) {
 
     return {
       ok: true,
@@ -414,26 +369,9 @@ export async function sendTestEmail(targetEmail: string) {
     };
   }
 
-  const transport = createTransporter();
-
-  if (!transport) {
-    return {
-      ok: false,
-      message: "SMTP no configurado"
-    };
-  }
-
-  await transport.transporter.sendMail({
-    from: transport.from,
-    to: targetEmail,
-    subject: "Prueba de correo de AsistenteContable",
-    text,
-    html
-  });
-
   return {
-    ok: true,
-    message: `Correo de prueba enviado a ${targetEmail}`
+    ok: false,
+    message: "Resend no configurado"
   };
 }
 

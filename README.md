@@ -25,7 +25,6 @@ Aplicación web personal para administrar ingresos, gastos, deudas, tarjetas, an
 - `PostgreSQL 16`
 - `Prisma`
 - `NextAuth`
-- `Sentry`
 - `Docker` y `Docker Compose`
 
 ## Arquitectura
@@ -159,19 +158,8 @@ NEXTAUTH_URL="http://localhost:3000"
 GOOGLE_CLIENT_ID=""
 GOOGLE_CLIENT_SECRET=""
 
-SENTRY_DSN=""
-SENTRY_TRACES_SAMPLE_RATE="0"
-NEXT_PUBLIC_SENTRY_DSN=""
-NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE="0"
-
 CRON_SECRET=""
 
-SMTP_HOST=""
-SMTP_PORT="587"
-SMTP_SECURE="false"
-SMTP_USER=""
-SMTP_PASS=""
-SMTP_FROM=""
 RESEND_API_KEY=""
 EMAIL_FROM=""
 RESEND_FROM=""
@@ -280,12 +268,7 @@ x-cron-secret: TU_CRON_SECRET
 
 ### Correo
 
-El canal de correo ahora soporta dos caminos:
-
-- `Resend API`, recomendado para Railway y despliegues donde SMTP saliente pueda estar restringido
-- `SMTP`, como respaldo para entornos donde ese canal sí esté disponible
-
-Configuración recomendada con Resend:
+El canal de correo usa la API HTTP de Resend, compatible con Render, Railway y Cloudflare Workers:
 
 - `RESEND_API_KEY`
 - `EMAIL_FROM`
@@ -293,20 +276,10 @@ Configuración recomendada con Resend:
 Compatibilidad opcional:
 
 - `RESEND_FROM`
-- `SMTP_FROM`
-
-Configuración SMTP alternativa:
-
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_SECURE`
-- `SMTP_USER`
-- `SMTP_PASS`
-- `SMTP_FROM`
 
 Notas:
 
-- si `RESEND_API_KEY` y un remitente están configurados, la aplicación prioriza `Resend API`
+- `EMAIL_FROM` debe ser un remitente autorizado en Resend
 - en `Integraciones` puedes verificar la conexión del canal, enviar un correo de prueba y despachar recordatorios manualmente
 - los botones de esas acciones muestran estado de carga para evitar dobles clics o confusión mientras el servidor procesa la petición
 
@@ -337,21 +310,11 @@ La estructura está preparada para integrarse con Meta WhatsApp Cloud API. Se re
 
 La aplicación ahora incluye una base de observabilidad operativa:
 
-- integración con `Sentry` para errores de frontend, backend y render
-- `global error boundary` para capturar fallos inesperados de UI
-- logging estructurado en JSON para rutas y acciones clave
+- `global error boundary` con registro estructurado de fallos inesperados de UI
+- logging estructurado en JSON para rutas y acciones clave, visible en Render y Cloudflare
 - endpoint `GET /api/health` para validar que la app está viva
 - endpoint `GET /api/ready` para validar conectividad con PostgreSQL
 - trazabilidad de recordatorios enviados, omitidos o fallidos en base de datos
-
-### Variables De Sentry
-
-- `SENTRY_DSN`
-- `SENTRY_TRACES_SAMPLE_RATE`
-- `NEXT_PUBLIC_SENTRY_DSN`
-- `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE`
-
-Si no configuras un `DSN`, Sentry queda desactivado sin romper la aplicación.
 
 ## Validación Técnica
 

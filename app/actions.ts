@@ -26,7 +26,7 @@ import { prisma } from "@/lib/prisma";
 import {
   dispatchReminderNotifications,
   sendTestEmail,
-  verifySmtpConnection
+  verifyEmailConnection
 } from "@/lib/reminder-notifications";
 
 function parseAmount(value: FormDataEntryValue | null) {
@@ -1206,11 +1206,11 @@ export async function revokeApiTokenAction(formData: FormData) {
   revalidatePath("/integraciones");
 }
 
-export async function verifySmtpAction() {
+export async function verifyEmailAction() {
   const user = await requireUser();
-  const result = await verifySmtpConnection();
+  const result = await verifyEmailConnection();
 
-  logInfo("action.smtp.verify", {
+  logInfo("action.email.verify", {
     userId: user.id,
     ok: result.ok
   });
@@ -1222,7 +1222,7 @@ export async function sendTestEmailAction() {
   const user = await requireUser();
   const result = await sendTestEmail(user.email);
 
-  logInfo("action.smtp.test_email", {
+  logInfo("action.email.test", {
     userId: user.id,
     ok: result.ok
   });

@@ -7,7 +7,7 @@ import { SectionCard } from "@/components/section-card";
 import {
   dispatchRemindersNowAction,
   sendTestEmailAction,
-  verifySmtpAction
+  verifyEmailAction
 } from "@/app/actions";
 import { requireUser } from "@/lib/auth";
 import { getDashboardData } from "@/lib/data";
@@ -69,7 +69,7 @@ export default async function IntegracionesPage({
             </div>
           </div>
           <div className="hero-actions">
-            <form action={verifySmtpAction}>
+            <form action={verifyEmailAction}>
               <PendingSubmitButton
                 className="ghost-button"
                 idleLabel="Verificar conexión del correo"
