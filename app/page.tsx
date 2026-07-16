@@ -31,6 +31,8 @@ import { dashboardTabs } from "@/lib/dashboard-tabs";
 import { getDashboardData } from "@/lib/data";
 import { categoryLabel, formatCurrency, formatDate } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home({
   searchParams
 }: {

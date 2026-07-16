@@ -13,6 +13,8 @@ import { requireUser } from "@/lib/auth";
 import { getDashboardData } from "@/lib/data";
 import { formatDate } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function IntegracionesPage({
   searchParams
 }: {
