@@ -1,4 +1,4 @@
-import { PaymentMethod, TransactionType } from "@prisma/client";
+import { PaymentMethod, TransactionType } from "@/generated/prisma/client";
 
 /** Period key "YYYY-MM" en zona local */
 export function currentPeriodKey(date = new Date()): string {

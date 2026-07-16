@@ -1,4 +1,4 @@
-import { PaymentMethod, TransactionType } from "@prisma/client";
+import { PaymentMethod, TransactionType } from "@/generated/prisma/client";
 import {
   applyRecurringTransactionsAction,
   createRecurringTransactionAction,

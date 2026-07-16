@@ -2,7 +2,7 @@ import {
   ReminderDeliveryChannel,
   ReminderDeliveryStatus,
   ReminderType
-} from "@prisma/client";
+} from "@/generated/prisma/client";
 import nodemailer from "nodemailer";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";

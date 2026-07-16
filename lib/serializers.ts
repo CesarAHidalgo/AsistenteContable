@@ -1,4 +1,4 @@
-import { DebtType, PaymentMethod, TransactionType } from "@prisma/client";
+import { DebtType, PaymentMethod, TransactionType } from "@/generated/prisma/client";
 
 export function decimalToNumber(value: { toNumber(): number } | number | null) {
   if (value === null) {

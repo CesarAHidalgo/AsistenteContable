@@ -360,6 +360,7 @@ Flujos verificados en el proyecto:
 - `npx prisma db push`
 - `npm run lint`
 - `npm run build`
+- `npx opennextjs-cloudflare build`
 - `docker compose up -d --build`
 - `GET /api/health`
 - `GET /api/ready`
@@ -384,3 +385,18 @@ Este repositorio ya no conserva el MVP estático inicial. La base soportada del 
 - filtros más avanzados en movimientos y extractos
 - presupuestos por categoría
 - despliegue productivo
+
+## Cloudflare Workers
+
+La aplicación quedó preparada para desplegarse también en Cloudflare Workers con OpenNext:
+
+- configuración base en [`wrangler.jsonc`](C:\Users\User\Documents\Proyectos\AsistenteContable\wrangler.jsonc)
+- adapter en [`open-next.config.ts`](C:\Users\User\Documents\Proyectos\AsistenteContable\open-next.config.ts)
+- scripts `npm run preview`, `npm run deploy` y `npm run cf-typegen`
+- ejemplo de variables para Wrangler en [`\.dev.vars.example`](C:\Users\User\Documents\Proyectos\AsistenteContable\.dev.vars.example)
+
+Notas:
+
+- para Cloudflare productivo conviene usar una `DATABASE_URL` de Neon
+- en local, `wrangler dev` usa `.dev.vars`, no `.env`
+- en Windows, OpenNext advierte compatibilidad parcial; el build puede completarse aunque el preview local sea menos estable que en Linux/Cloudflare

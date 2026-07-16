@@ -3,8 +3,8 @@
 import type { Route } from "next";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { Prisma } from "@prisma/client";
-import { DebtType, PaymentMethod, TransactionType } from "@prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
+import { DebtType, PaymentMethod, TransactionType } from "@/generated/prisma/client";
 import { requireUser } from "@/lib/auth";
 import { generateOpaqueToken, hashPassword, hashToken } from "@/lib/crypto";
 import {

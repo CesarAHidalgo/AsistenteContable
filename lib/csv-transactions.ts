@@ -1,4 +1,4 @@
-import { PaymentMethod, TransactionType } from "@prisma/client";
+import { PaymentMethod, TransactionType } from "@/generated/prisma/client";
 
 export const TRANSACTION_CSV_HEADER =
   "description,amount,type,category,paymentMethod,transactionAt,creditCardDebtName";

@@ -3,6 +3,8 @@ node_modules/
 
 # Next.js
 .next/
+.open-next/
+.wrangler/
 out/
 
 # Environment
@@ -11,6 +13,9 @@ out/
 .env.development.local
 .env.test.local
 .env.production.local
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
 
 # Logs
 *.log
@@ -22,6 +27,7 @@ pnpm-debug.log*
 # Coverage and build artifacts
 coverage/
 dist/
+generated/
 *.dump
 *.tsbuildinfo
 

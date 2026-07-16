@@ -1,4 +1,4 @@
-import { DebtType } from "@prisma/client";
+import { DebtType } from "@/generated/prisma/client";
 
 type DebtLike = {
   type: DebtType;

@@ -1,4 +1,4 @@
-import { DebtType } from "@prisma/client";
+import { DebtType } from "@/generated/prisma/client";
 import { authenticateApiRequest } from "@/lib/auth";
 import { debtPaymentPostSchema, parseApiJson } from "@/lib/api-v1-schemas";
 import { splitDebtPayment } from "@/lib/finance";

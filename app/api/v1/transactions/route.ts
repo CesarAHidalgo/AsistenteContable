@@ -1,4 +1,4 @@
-import { PaymentMethod, TransactionType } from "@prisma/client";
+import { PaymentMethod, TransactionType } from "@/generated/prisma/client";
 import { authenticateApiRequest } from "@/lib/auth";
 import { parseApiJson, transactionPostSchema } from "@/lib/api-v1-schemas";
 import { getCreditCardPurchaseCycle } from "@/lib/finance";

@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { PendingSubmitButton } from "@/components/pending-submit-button";
-import { DebtType, PaymentMethod, ReminderType, TransactionType } from "@prisma/client";
+import { DebtType, PaymentMethod, ReminderType, TransactionType } from "@/generated/prisma/client";
 import {
   createApiTokenAction,
   type CreateApiTokenState,

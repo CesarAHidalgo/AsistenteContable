@@ -1,4 +1,4 @@
-import { DebtType, PaymentMethod, TransactionType } from "@prisma/client";
+import { DebtType, PaymentMethod, TransactionType } from "@/generated/prisma/client";
 import { z } from "zod";
 
 const optionalDate = z.preprocess((val) => {

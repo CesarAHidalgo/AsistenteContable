@@ -1,4 +1,4 @@
-import type { Prisma, TransactionType } from "@prisma/client";
+import type { Prisma, TransactionType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getNotificationChannelStatus } from "@/lib/reminder-notifications";
 import {
