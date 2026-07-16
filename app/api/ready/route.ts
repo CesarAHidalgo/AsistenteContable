@@ -20,6 +20,11 @@ export async function GET() {
         status: "degraded",
         service: "AsistenteContable",
         database: "error",
+        configuration: {
+          databaseUrl: Boolean(process.env.DATABASE_URL),
+          authSecret: Boolean(process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET),
+          nextAuthUrl: Boolean(process.env.NEXTAUTH_URL)
+        },
         timestamp: new Date().toISOString()
       },
       { status: 503 }
