@@ -355,11 +355,13 @@ La aplicación quedó preparada para desplegarse también en Cloudflare Workers 
 
 - configuración base en [`wrangler.jsonc`](C:\Users\User\Documents\Proyectos\AsistenteContable\wrangler.jsonc)
 - adapter en [`open-next.config.ts`](C:\Users\User\Documents\Proyectos\AsistenteContable\open-next.config.ts)
-- scripts `npm run preview`, `npm run deploy` y `npm run cf-typegen`
+- scripts `npm run preview`, `npm run deploy`, `npm run cf:prepare-wasm` y `npm run cf-typegen`
 - ejemplo de variables para Wrangler en [`\.dev.vars.example`](C:\Users\User\Documents\Proyectos\AsistenteContable\.dev.vars.example)
 
 Notas:
 
 - para Cloudflare productivo conviene usar una `DATABASE_URL` de Neon
+- el despliegue prepara y deduplica automáticamente el motor WASM de Prisma para importarlo como módulo precompilado
+- `keep_vars` conserva las variables y secretos administrados desde Cloudflare entre despliegues
 - en local, `wrangler dev` usa `.dev.vars`, no `.env`
 - en Windows, OpenNext advierte compatibilidad parcial; el build puede completarse aunque el preview local sea menos estable que en Linux/Cloudflare

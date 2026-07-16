@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typedRoutes: true,
+  outputFileTracingIncludes: {
+    "/*": ["./.next/server/chunks/static/wasm/**/*.wasm"]
+  },
   webpack(config) {
     config.experiments = {
       ...config.experiments,
