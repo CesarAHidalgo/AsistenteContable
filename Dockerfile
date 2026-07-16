@@ -21,10 +21,7 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/package-lock.json ./package-lock.json
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/generated ./generated
 COPY --from=builder /app/next.config.mjs ./next.config.mjs
-COPY --from=builder /app/sentry.server.config.ts ./sentry.server.config.ts
-COPY --from=builder /app/sentry.edge.config.ts ./sentry.edge.config.ts
-COPY --from=builder /app/instrumentation.ts ./instrumentation.ts
-COPY --from=builder /app/instrumentation-client.ts ./instrumentation-client.ts
 EXPOSE 3000
 CMD ["sh", "-c", "npx prisma db push && npm run start"]
