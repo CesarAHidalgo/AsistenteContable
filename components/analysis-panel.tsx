@@ -179,7 +179,7 @@ export function AnalysisPanel({
             <select value={periodFilter} onChange={(event) => setPeriodFilter(event.target.value as FilterPeriod)}>
               <option value="CURRENT_MONTH">Mes calendario actual</option>
               <option value="LAST_90_DAYS">Últimos 90 días</option>
-              <option value="ALL">Todo el histórico cargado</option>
+              <option value="ALL">Últimos 12 meses cargados</option>
             </select>
           </label>
           <label>

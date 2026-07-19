@@ -44,10 +44,13 @@ export default async function Home({
     txCycle?: string;
     txCat?: string;
     txType?: string;
+    txPage?: string;
   }>;
 }) {
   const user = await requireUser();
   const resolvedSearchParams = searchParams ? await searchParams : {};
+  const activeTab = dashboardTabs.find((tab) => tab.id === resolvedSearchParams.tab)?.id ?? "overview";
+  const transactionPage = Math.max(1, Number.parseInt(resolvedSearchParams.txPage ?? "1", 10) || 1);
   const txFilters = {
     q: resolvedSearchParams.txQ,
     cycle: resolvedSearchParams.txCycle,
@@ -55,16 +58,15 @@ export default async function Home({
     type: resolvedSearchParams.txType as "INCOME" | "EXPENSE" | "" | undefined
   };
   const data = await getDashboardData(user.id, {
+    activeTab,
     transactionList: {
       q: txFilters.q,
       cycle: txFilters.cycle,
       category: txFilters.category,
-      type: txFilters.type === "INCOME" || txFilters.type === "EXPENSE" ? txFilters.type : ""
+      type: txFilters.type === "INCOME" || txFilters.type === "EXPENSE" ? txFilters.type : "",
+      page: transactionPage
     }
   });
-  const activeTab = dashboardTabs.some((tab) => tab.id === resolvedSearchParams.tab)
-    ? resolvedSearchParams.tab ?? "overview"
-    : "overview";
   const activeTabMeta = dashboardTabs.find((t) => t.id === activeTab);
   const activeTabLabel = activeTabMeta?.label ?? "Panel";
   const feedbackMessage = resolvedSearchParams.message;
@@ -297,8 +299,7 @@ export default async function Home({
           >
             <TransactionForm
               redirectTab="transactions"
-              creditCardDebts={data.debts
-                .filter((debt) => debt.type === "CREDIT_CARD")
+              creditCardDebts={data.debtOptions
                 .map((debt) => ({
                   id: debt.id,
                   name: debt.name,
@@ -330,6 +331,7 @@ export default async function Home({
                 label: item.label,
                 isCurrent: item.key === data.transactionCycles.currentKey
               }))}
+              pagination={data.transactionPagination}
             />
             <div className="stack-list">
               {data.transactionsList.length === 0 ? (
@@ -390,9 +392,7 @@ export default async function Home({
           >
             <RecurringTransactionsPanel
               items={data.recurringTemplates}
-              creditCardDebts={data.debts
-                .filter((debt) => debt.type === "CREDIT_CARD")
-                .map((d) => ({ id: d.id, name: d.name }))}
+              creditCardDebts={data.debtOptions.map((debt) => ({ id: debt.id, name: debt.name }))}
             />
           </SectionCard>
 

@@ -24,7 +24,8 @@ const categories = [
 
 export function TransactionsFilterBar({
   defaults,
-  cycles
+  cycles,
+  pagination
 }: {
   defaults: {
     txQ?: string;
@@ -37,10 +38,28 @@ export function TransactionsFilterBar({
     label: string;
     isCurrent: boolean;
   }>;
+  pagination: {
+    page: number;
+    pageSize: number;
+    hasPreviousPage: boolean;
+    hasNextPage: boolean;
+  };
 }) {
+  const pageHref = (page: number) => {
+    const params = new URLSearchParams();
+    params.set("tab", "transactions");
+    if (defaults.txQ) params.set("txQ", defaults.txQ);
+    if (defaults.txCycle) params.set("txCycle", defaults.txCycle);
+    if (defaults.txCat) params.set("txCat", defaults.txCat);
+    if (defaults.txType) params.set("txType", defaults.txType);
+    params.set("txPage", String(page));
+    return `/movimientos?${params.toString()}` as Route;
+  };
+
   return (
-    <form method="get" action="/movimientos" className="transactions-filter-form">
-      <div className="filter-grid">
+    <div className="transactions-filter-form">
+      <form method="get" action="/movimientos">
+        <div className="filter-grid">
         <label>
           <span className="filter-label">Buscar</span>
           <input
@@ -81,13 +100,31 @@ export function TransactionsFilterBar({
             <option value="EXPENSE">Gasto</option>
           </select>
         </label>
-      </div>
-      <div className="filter-actions">
-        <PendingSubmitButton idleLabel="Aplicar filtros" pendingLabel="Aplicando…" />
-        <Link href={"/movimientos?tab=transactions" as Route} className="inline-link" prefetch={false}>
-          Limpiar
-        </Link>
-      </div>
-    </form>
+        </div>
+        <div className="filter-actions">
+          <PendingSubmitButton idleLabel="Aplicar filtros" pendingLabel="Aplicando…" />
+          <Link href={"/movimientos?tab=transactions" as Route} className="inline-link" prefetch={false}>
+            Limpiar
+          </Link>
+        </div>
+      </form>
+      {pagination.hasPreviousPage || pagination.hasNextPage ? (
+        <nav className="filter-actions transactions-pagination" aria-label="Paginación de movimientos">
+          {pagination.hasPreviousPage ? (
+            <Link href={pageHref(pagination.page - 1)} className="ghost-button" prefetch={false}>
+              Anterior
+            </Link>
+          ) : null}
+          <span className="meta">
+            Página {pagination.page} · hasta {pagination.pageSize} movimientos
+          </span>
+          {pagination.hasNextPage ? (
+            <Link href={pageHref(pagination.page + 1)} className="ghost-button" prefetch={false}>
+              Siguiente
+            </Link>
+          ) : null}
+        </nav>
+      ) : null}
+    </div>
   );
 }

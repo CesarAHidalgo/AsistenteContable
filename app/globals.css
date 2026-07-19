@@ -1912,6 +1912,13 @@ button:disabled {
   align-items: center;
 }
 
+.transactions-pagination {
+  justify-content: space-between;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
 .recurring-stack {
   display: grid;
   gap: 20px;

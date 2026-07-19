@@ -8,6 +8,10 @@ import {
   getCreditCardCycleInfo
 } from "@/lib/finance";
 import { decimalToNumber } from "@/lib/serializers";
+import type { DashboardTabId } from "@/lib/dashboard-tabs";
+
+const TRANSACTIONS_PAGE_SIZE = 40;
+
 export type TransactionListFilterInput = {
   q?: string;
   from?: string;
@@ -15,6 +19,7 @@ export type TransactionListFilterInput = {
   category?: string;
   type?: TransactionType | "";
   cycle?: string;
+  page?: number;
 };
 import { monthPeriodKey } from "@/lib/month-period";
 type CycleRange = {
@@ -111,8 +116,22 @@ function buildTransactionListWhere(
 
 export async function getDashboardData(
   userId: string,
-  options?: { transactionList?: TransactionListFilterInput }
+  options?: {
+    activeTab?: DashboardTabId;
+    transactionList?: TransactionListFilterInput;
+  }
 ) {
+  const activeTab = options?.activeTab ?? "overview";
+  const needsRecentTransactions = activeTab === "overview";
+  const needsTransactionHistory = activeTab === "transactions";
+  const needsAnalysis = activeTab === "analysis";
+  const needsCycleTransactions = activeTab === "overview" || needsAnalysis;
+  const needsRecurring = activeTab === "recurring";
+  const needsDebts = ["overview", "analysis", "debts", "cards", "simulation"].includes(activeTab);
+  const needsDebtOptions = activeTab === "transactions" || activeTab === "recurring";
+  const needsReminders = activeTab === "reminders";
+  const needsOverview = activeTab === "overview";
+  const requestedPage = Math.max(1, Math.floor(options?.transactionList?.page ?? 1));
   const budgetPeriodKey = monthPeriodKey();
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
@@ -143,22 +162,28 @@ export async function getDashboardData(
         )
       : getBudgetCycleRange(previousCycleReferenceDate, user.billingCycleStartDay, user.billingCycleEndDay);
 
+  const transactionListWhere = buildTransactionListWhere(
+    userId,
+    options?.transactionList,
+    budgetCycle
+  );
+
   const [
     transactions,
     cycleTransactions,
     previousCycleTransactions,
     allTransactions,
-    transactionsFiltered,
+    transactionsPageRows,
+    transactionDates,
     recurringTemplates,
     debts,
+    debtOptions,
     reminders,
-    apiTokens,
-    recentReminderDeliveries,
-    pushSubscriptionCount,
+    pendingReminders,
     categoryBudgets
   ] =
     await Promise.all([
-    prisma.transaction.findMany({
+    needsRecentTransactions ? prisma.transaction.findMany({
       where: { userId },
       include: {
         creditCardDebt: {
@@ -166,9 +191,9 @@ export async function getDashboardData(
         }
       },
       orderBy: { transactionAt: "desc" },
-      take: 50
-    }),
-    prisma.transaction.findMany({
+      take: 3
+    }) : Promise.resolve([]),
+    needsCycleTransactions ? prisma.transaction.findMany({
       where: {
         userId,
         transactionAt: {
@@ -176,14 +201,18 @@ export async function getDashboardData(
           lt: budgetCycle.endExclusive
         }
       },
-      include: {
-        creditCardDebt: {
-          select: { name: true }
-        }
-      },
-      orderBy: { transactionAt: "desc" }
-    }),
-    prisma.transaction.findMany({
+      select: {
+        id: true,
+        description: true,
+        amount: true,
+        type: true,
+        category: true,
+        paymentMethod: true,
+        transactionAt: true,
+        creditCardDebt: { select: { name: true } }
+      }
+    }) : Promise.resolve([]),
+    needsAnalysis ? prisma.transaction.findMany({
       where: {
         userId,
         transactionAt: {
@@ -191,33 +220,49 @@ export async function getDashboardData(
           lt: previousBudgetCycle.endExclusive
         }
       },
-      include: {
-        creditCardDebt: {
-          select: { name: true }
+      select: {
+        amount: true,
+        type: true,
+        paymentMethod: true
+      }
+    }) : Promise.resolve([]),
+    needsAnalysis ? prisma.transaction.findMany({
+      where: {
+        userId,
+        transactionAt: {
+          gte: new Date(new Date().getFullYear(), new Date().getMonth() - 11, 1)
         }
       },
-      orderBy: { transactionAt: "desc" }
-    }),
-    prisma.transaction.findMany({
-      where: { userId },
-      include: {
-        creditCardDebt: {
-          select: { name: true }
-        }
+      select: {
+        id: true,
+        description: true,
+        amount: true,
+        type: true,
+        category: true,
+        paymentMethod: true,
+        transactionAt: true,
+        creditCardDebt: { select: { name: true } }
       },
       orderBy: { transactionAt: "desc" }
-    }),
-    prisma.transaction.findMany({
-      where: buildTransactionListWhere(userId, options?.transactionList, budgetCycle),
+    }) : Promise.resolve([]),
+    needsTransactionHistory ? prisma.transaction.findMany({
+      where: transactionListWhere,
       include: {
         creditCardDebt: {
           select: { name: true }
         }
       },
       orderBy: { transactionAt: "desc" },
-      take: 300
-    }),
-    prisma.recurringTransaction.findMany({
+      skip: (requestedPage - 1) * TRANSACTIONS_PAGE_SIZE,
+      take: TRANSACTIONS_PAGE_SIZE + 1
+    }) : Promise.resolve([]),
+    needsTransactionHistory ? prisma.transaction.findMany({
+      where: { userId },
+      select: { transactionAt: true },
+      orderBy: { transactionAt: "desc" },
+      take: 1000
+    }) : Promise.resolve([]),
+    needsRecurring ? prisma.recurringTransaction.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
       include: {
@@ -225,8 +270,8 @@ export async function getDashboardData(
           select: { id: true, name: true }
         }
       }
-    }),
-    prisma.debt.findMany({
+    }) : Promise.resolve([]),
+    needsDebts ? prisma.debt.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
       include: {
@@ -238,48 +283,52 @@ export async function getDashboardData(
           where: {
             paymentMethod: "CREDIT_CARD"
           },
-          orderBy: { transactionAt: "desc" }
+          orderBy: { transactionAt: "desc" },
+          take: activeTab === "cards" ? 500 : 120
         },
         payments: {
-          orderBy: { paidAt: "desc" }
+          orderBy: { paidAt: "desc" },
+          take: 120
         }
       }
-    }),
-    prisma.reminder.findMany({
+    }) : Promise.resolve([]),
+    needsDebtOptions ? prisma.debt.findMany({
+      where: { userId, type: "CREDIT_CARD" },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        statementDayOfMonth: true,
+        dueDayOfMonth: true,
+        statementDayPurchasesToNextCycle: true
+      },
+      orderBy: { createdAt: "desc" }
+    }) : Promise.resolve([]),
+    needsReminders ? prisma.reminder.findMany({
       where: { userId },
       orderBy: [{ isCompleted: "asc" }, { dueDate: "asc" }],
-      take: 20
-    }),
-    prisma.apiToken.findMany({
-      where: { userId, revokedAt: null },
-      orderBy: { createdAt: "desc" }
-    }),
-    prisma.reminderDelivery.findMany({
-      where: {
-        reminder: {
-          userId
-        }
+      take: 50
+    }) : Promise.resolve([]),
+    prisma.reminder.findMany({
+      where: { userId, isCompleted: false },
+      select: {
+        type: true,
+        dueDate: true,
+        notificationAt: true,
+        notifyDaysBefore: true,
+        isCompleted: true
       },
-      include: {
-        reminder: {
-          select: {
-            id: true,
-            title: true,
-            type: true
-          }
-        }
-      },
-      orderBy: { createdAt: "desc" },
-      take: 10
+      orderBy: { dueDate: "asc" },
+      take: 100
     }),
-    prisma.pushSubscription.count({
-      where: { userId }
-    }),
-    prisma.categoryBudget.findMany({
+    needsOverview ? prisma.categoryBudget.findMany({
       where: { userId, periodKey: budgetPeriodKey },
       orderBy: { category: "asc" }
-    })
+    }) : Promise.resolve([])
   ]);
+
+  const hasNextTransactionPage = transactionsPageRows.length > TRANSACTIONS_PAGE_SIZE;
+  const transactionsFiltered = transactionsPageRows.slice(0, TRANSACTIONS_PAGE_SIZE);
 
   const cycleBudgetTransactions = cycleTransactions.filter(
     (item) => !(item.paymentMethod === "CREDIT_CARD" && item.type === "EXPENSE")
@@ -309,7 +358,7 @@ export async function getDashboardData(
     spendByCategory.set(cat, (spendByCategory.get(cat) ?? 0) + item.amount.toNumber());
   }
 
-  const dueSoon = reminders.filter((item) => {
+  const dueSoon = pendingReminders.filter((item) => {
     if (item.isCompleted) {
       return false;
     }
@@ -326,7 +375,7 @@ export async function getDashboardData(
   });
 
   const transactionCycleOptions = buildTransactionCycleOptions({
-    transactions: allTransactions.map((item) => item.transactionAt),
+    transactions: transactionDates.map((item) => item.transactionAt),
     currentCycle: budgetCycle,
     billingCycleReferenceStart: user.billingCycleReferenceStart,
     billingCycleReferenceEnd: user.billingCycleReferenceEnd,
@@ -351,7 +400,7 @@ export async function getDashboardData(
       balance: totalIncome - totalExpenses,
       monthlyTransactionCount: cycleBudgetTransactions.length,
       activeDebtCount: debts.filter((item) => item.currentAmount.toNumber() > 0).length,
-      pendingReminderCount: reminders.filter((item) => !item.isCompleted).length,
+      pendingReminderCount: pendingReminders.length,
       cycleStartLabel: budgetCycle.start.toISOString(),
       cycleEndLabel: budgetCycle.end.toISOString(),
       cycleStartDay: budgetCycle.cycleStartDay,
@@ -418,6 +467,12 @@ export async function getDashboardData(
       currentKey: currentTransactionCycleKey,
       options: transactionCycleOptions
     },
+    transactionPagination: {
+      page: requestedPage,
+      pageSize: TRANSACTIONS_PAGE_SIZE,
+      hasPreviousPage: requestedPage > 1,
+      hasNextPage: hasNextTransactionPage
+    },
     recurringTemplates: recurringTemplates.map((item) => ({
       id: item.id,
       description: item.description,
@@ -431,6 +486,7 @@ export async function getDashboardData(
       creditCardDebtId: item.creditCardDebtId,
       creditCardDebtName: item.creditCardDebt?.name ?? null
     })),
+    debtOptions,
     debts: debts.map((item) => {
       const normalizedTransactions = item.transactions.map((transaction) => ({
         ...transaction,
@@ -523,14 +579,6 @@ export async function getDashboardData(
       ...item,
       amount: decimalToNumber(item.amount)
     })),
-    apiTokens,
-    integrations: {
-      channelStatus: getNotificationChannelStatus(pushSubscriptionCount),
-      recentReminderDeliveries: recentReminderDeliveries.map((delivery) => ({
-        ...delivery,
-        reminder: delivery.reminder
-      }))
-    },
     onboarding: {
       showWelcomeCard: !user.onboardingCompletedAt
     },
@@ -542,6 +590,45 @@ export async function getDashboardData(
         budgetAmount: row.amount.toNumber(),
         spentAmount: spendByCategory.get(row.category) ?? 0
       }))
+    }
+  };
+}
+
+export async function getIntegrationsData(userId: string) {
+  const [apiTokens, recentReminderDeliveries, pushSubscriptionCount] = await Promise.all([
+    prisma.apiToken.findMany({
+      where: { userId, revokedAt: null },
+      orderBy: { createdAt: "desc" },
+      take: 50
+    }),
+    prisma.reminderDelivery.findMany({
+      where: {
+        reminder: {
+          userId
+        }
+      },
+      include: {
+        reminder: {
+          select: {
+            id: true,
+            title: true,
+            type: true
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10
+    }),
+    prisma.pushSubscription.count({
+      where: { userId }
+    })
+  ]);
+
+  return {
+    apiTokens,
+    integrations: {
+      channelStatus: getNotificationChannelStatus(pushSubscriptionCount),
+      recentReminderDeliveries
     }
   };
 }

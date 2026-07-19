@@ -10,7 +10,7 @@ import {
   verifyEmailAction
 } from "@/app/actions";
 import { requireUser } from "@/lib/auth";
-import { getDashboardData } from "@/lib/data";
+import { getIntegrationsData } from "@/lib/data";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export default async function IntegracionesPage({
   searchParams: Promise<{ message?: string; status?: string }>;
 }) {
   const user = await requireUser();
-  const data = await getDashboardData(user.id);
+  const data = await getIntegrationsData(user.id);
   const params = await searchParams;
 
   return (
