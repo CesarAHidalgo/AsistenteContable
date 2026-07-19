@@ -1,4 +1,4 @@
-/** Rutas amigables reescritas internamente a `/?tab=…` (ver `next.config.mjs`). */
+/** Rutas amigables atendidas por `app/[section]/page.tsx`. */
 export const dashboardTabs = [
   { id: "overview", label: "Resumen", href: "/resumen" },
   { id: "transactions", label: "Movimientos", href: "/movimientos" },

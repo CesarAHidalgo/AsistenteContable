@@ -33,19 +33,21 @@ import { categoryLabel, formatCurrency, formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+export type DashboardSearchParams = {
+  tab?: string;
+  status?: string;
+  message?: string;
+  txQ?: string;
+  txCycle?: string;
+  txCat?: string;
+  txType?: string;
+  txPage?: string;
+};
+
 export default async function Home({
   searchParams
 }: {
-  searchParams?: Promise<{
-    tab?: string;
-    status?: string;
-    message?: string;
-    txQ?: string;
-    txCycle?: string;
-    txCat?: string;
-    txType?: string;
-    txPage?: string;
-  }>;
+  searchParams?: Promise<DashboardSearchParams>;
 }) {
   const user = await requireUser();
   const resolvedSearchParams = searchParams ? await searchParams : {};

@@ -1,4 +1,4 @@
-/** Alineado con `next.config.mjs` rewrites y `lib/dashboard-tabs.ts`. */
+/** Alineado con `app/[section]/page.tsx` y `lib/dashboard-tabs.ts`. */
 const TAB_TO_PATH: Record<string, string> = {
   overview: "/resumen",
   transactions: "/movimientos",
