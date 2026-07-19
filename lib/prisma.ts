@@ -6,8 +6,6 @@ declare global {
   var prismaGlobal: PrismaClient | undefined;
 }
 
-let prismaClient: PrismaClient | undefined;
-
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
 
@@ -27,22 +25,17 @@ function createPrismaClient() {
 }
 
 function getPrismaClient() {
-  if (prismaClient) {
-    return prismaClient;
-  }
-
   if (globalThis.prismaGlobal) {
-    prismaClient = globalThis.prismaGlobal;
-    return prismaClient;
+    return globalThis.prismaGlobal;
   }
 
-  prismaClient = createPrismaClient();
+  const client = createPrismaClient();
 
   if (process.env.NODE_ENV !== "production") {
-    globalThis.prismaGlobal = prismaClient;
+    globalThis.prismaGlobal = client;
   }
 
-  return prismaClient;
+  return client;
 }
 
 export const prisma = new Proxy({} as PrismaClient, {
